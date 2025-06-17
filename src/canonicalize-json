@@ -1,0 +1,4 @@
+#!/bin/sh
+
+python /usr/local/bin/canonicalize-json.py
+
