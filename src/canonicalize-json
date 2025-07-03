@@ -1,4 +1,21 @@
 #!/bin/sh
 
-python /usr/local/bin/canonicalize-json.py
+function is_true() {
+    echo "${1:?Need argument}" | egrep -iq '^\s*(1|true|t|yes|y)\s*$'
+}
+
+set -o errexit
+set -o errtrace
+set -o nounset
+set -o pipefail
+if is_true "${DEBUG:-false}"; then
+    set -o xtrace
+    set -o verbose
+fi
+
+function prettify() {
+    is_true "${PRETTIFY:-false}" && (cat /dev/stdin | jq .) || cat /dev/stdin
+} 
+
+python /usr/local/bin/canonicalize-json.py | prettify 
 

@@ -12,10 +12,12 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ARG ALPINE_VERSION
 ENV ALPINE_VERSION=${ALPINE_VERSION}
 
-ARG AWSCLI_VERSION
-ENV AWSCLI_VERSION=${AWSCLI_VERSION}
+ENV DEBUG=false
+ENV PRETTIFY=false
 
-RUN echo [INFO] install JCS - JSON Canonicalization python library ... \
+RUN echo [INFO] install jq ... \
+    && apk add --no-cache jq \
+    && echo [INFO] install JCS - JSON Canonicalization python library ... \
     && pip install jcs
 
 COPY --chmod=755 ./src/canonicalize-json ./src/canonicalize-json.py /usr/local/bin/
