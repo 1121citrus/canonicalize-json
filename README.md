@@ -48,8 +48,8 @@ Variable | Default | Notes
 
 ## Building
 
-1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/docker-volume-backup:latest .`
-1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/docker-volume-backup:x.y.z .`
+1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest .`
+1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:x.y.z .`
 
 ## Testing
 
@@ -58,5 +58,5 @@ Inididual tests are `test/*.test`. To run all tests iunvoke `bash test/run-all-t
 <!--
 ## Releasing
 
-1. [Draft a new release on GitHub](https://github.com/1121citrus/docker-volume-backup/releases/new)
+1. [Draft a new release on GitHub](https://github.com/1121citrus/canonicalize-json/releases/new)
 -->
