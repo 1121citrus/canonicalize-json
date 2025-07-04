@@ -43,7 +43,7 @@ $ cat data.json | canonicalize-json-pretty
 
 Variable | Default | Notes
 --- | --- | ---
-`DEBUG` | `false` | If true then the shell script will enable options `xtrace` and `verbose`
+`DEBUG` | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`
 `PRETTIFY` | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty.
 
 ## Building
@@ -51,9 +51,9 @@ Variable | Default | Notes
 1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/docker-volume-backup:latest .`
 1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/docker-volume-backup:x.y.z .`
 
-<!--
 ## Testing
--->
+
+Inididual tests are `test/*.test`. To run all tests iunvoke `bash test/run-all-tests`
 
 <!--
 ## Releasing
