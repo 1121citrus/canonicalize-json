@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Determine the full pathname of the directory in which this script lives
+function script-dir() {
+    local srcpath="${BASH_SOURCE[0]}"
+    local symlinkdir
+    local scriptdir
+    # Resolve symlinks recursively
+    while [[ -L "${srcpath}" ]]; do
+        # Get symlink directory
+        symlinkdir="$(cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 && pwd)"
+        # Resolve symlink target (relative or absolute)
+        srcpath="$(readlink "${srcpath}")"
+        # Check if candidate path is relative or absolute
+        if [[ "${srcpath}" != /* ]]; then
+            # Candidate path is relative, resolve to full path
+            srcpath="${symlinkdir}/${srcpath}"
+        fi
+    done
+    # Get final script directory path from fully resolved source path
+    echo $(cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 && pwd)
+}
+
+cd "$(script-dir)"
+ls -1 *.test | sort | while read test; do
+    bash "${test}" || true
+done
+
