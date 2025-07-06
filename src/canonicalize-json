@@ -14,7 +14,7 @@ if is_true "${DEBUG:-false}"; then
 fi
 
 function prettify() {
-    is_true "${PRETTIFY:-false}" && (cat /dev/stdin | jq .) || cat /dev/stdin
+    is_true "${PRETTIFY:-${PRETTY_PRINT:-false}}" && (cat /dev/stdin | jq .) || cat /dev/stdin
 } 
 
 python /usr/local/bin/canonicalize-json.py | prettify 

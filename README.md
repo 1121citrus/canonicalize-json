@@ -3,40 +3,45 @@ A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785) 
 
 ## Usage
 
-### Example data
-```sh
-# cat data.son
-{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}
-```
-
 ### Ordinary canonicalization
 ```sh
-$ alias canonicalize-json='docker run -i --rm 1121citrus/canonicalize-json:latest'
-$ cat data.json | canonicalize-json
-{"1":{"dec":"49","hex":"31","oct":"61"},"A":{"dec":"65","hex":"41","oct":"101"},"z":{"dec":"122","hex":"7A","oct":"172"}}
+$ cat json | \
+> tee >(sed 's/^/BEFORE: /' >/dev/stderr) | \
+> docker run -i --rm 1121citrus/canonicalize-json:latest | \
+> sed 's/^/AFTER: /'
+BEFORE: {"z":{"o":"172","d":"122","h":"7A"},"1":{"h":"31","o":"61","d":"49"}}
+AFTER: {"1":{"d":"49","h":"31","o":"61"},"z":{"d":"122","h":"7A","o":"172"}}
 ```
-
 ### Prettified canonicalization
 ```sh
-$ alias canonicalize-json-pretty='docker run -i --rm -e PRETTIFY=true 1121citrus/canonicalize-json:latest'
-$ cat data.json | canonicalize-json-pretty
-{
-  "1": {
-    "dec": "49",
-    "hex": "31",
-    "oct": "61"
-  },
-  "A": {
-    "dec": "65",
-    "hex": "41",
-    "oct": "101"
-  },
-  "z": {
-    "dec": "122",
-    "hex": "7A",
-    "oct": "172"
-  }
-}
+$ cat json | \
+> tee >(jq . | sed 's/^/BEFORE: /' >/dev/stderr) | \
+> docker run -i --rm -e PRETTIFY=true 1121citrus/canonicalize-json:latest | \
+> sed 's/^/AFTER: /'
+BEFORE: {
+BEFORE:   "z": {
+BEFORE:     "o": "172",
+BEFORE:     "d": "122",
+BEFORE:     "h": "7A"
+BEFORE:   },
+BEFORE:   "1": {
+BEFORE:     "h": "31",
+BEFORE:     "o": "61",
+BEFORE:     "d": "49"
+BEFORE:   }
+BEFORE: }
+AFTER: {
+AFTER:   "1": {
+AFTER:     "d": "49",
+AFTER:     "h": "31",
+AFTER:     "o": "61"
+AFTER:   },
+AFTER:   "z": {
+AFTER:     "d": "122",
+AFTER:     "h": "7A",
+AFTER:     "o": "172"
+AFTER:   }
+AFTER: }
 ```
 
 ## Configuration
@@ -45,6 +50,7 @@ Variable | Default | Notes
 --- | --- | ---
 `DEBUG` | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`
 `PRETTIFY` | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty.
+`PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.
 
 ## Building
 
