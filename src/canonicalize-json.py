@@ -1,6 +1,24 @@
 #!/usr/bin/env python
 
-"""canonicalize-json.py: Canonicalize JSON per [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785)."""
+"""
+canonicalize-json.py: Canonicalize JSON per [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785).
+
+A containerized JCS (RFC 8785) compliant JSON formatter, utilizing the Python JCS library.
+Copyright (C) 2005 James Hanlon [mailto:jim@hanlonsoftware.com]
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
 __author__      = 'Jim Hanlon <mailto:jim@hanlonsoftware.com>'
 __copyright__   = 'Copyright (c) 2025, James Hanlon'

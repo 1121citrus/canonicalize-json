@@ -1,6 +1,9 @@
 # canonicalize-json
 A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785) compliant JSON formatter, utilizing the [Python JCS](https://pypi.org/project/jcs) library.
 
+The main author of the [Python JCS](https://pypi.org/project/jcs) library is [Anders Rundgren](https://github.com/cyberphone).
+The original source code is at [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3) including comprehensive test data.
+
 ## Usage
 
 ### Ordinary canonicalization
