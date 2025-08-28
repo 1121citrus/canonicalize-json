@@ -4,7 +4,7 @@
 canonicalize-json.py: Canonicalize JSON per [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785).
 
 A containerized JCS (RFC 8785) compliant JSON formatter, utilizing the Python JCS library.
-Copyright (C) 2005 James Hanlon [mailto:jim@hanlonsoftware.com]
+Copyright (C) 2025 James Hanlon [mailto:jim@hanlonsoftware.com]
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
