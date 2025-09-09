@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 """
-canonicalize-json.py: Canonicalize JSON per [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785).
+canonicalize-json.py: Canonicalize JSON per JCS (RFC 8785).
 
-A containerized JCS (RFC 8785) compliant JSON formatter, utilizing the Python JCS library.
+A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785)
+compliant JSON formatter, utilizing the Python JCS library.
+
 Copyright (C) 2025 James Hanlon [mailto:jim@hanlonsoftware.com]
 
 This program is free software: you can redistribute it and/or modify
@@ -29,9 +31,8 @@ __maintainer__ = 'Jim Hanlon'
 __email__ = 'jim@hanlonsoftware.com'
 __status__ = 'Production'
 
+from sys import stdin
+from json import load
 from jcs import canonicalize
-from json import dump, load
-from sys import stdin, stdout
 
 print(canonicalize(load(stdin)).decode('utf-8'), flush=True)
-
