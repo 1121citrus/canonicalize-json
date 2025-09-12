@@ -61,7 +61,7 @@ AFTER: }
 
 ## Building
 
-1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/ha-bash-base:x.y.z --push .`
+1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/canonicalize-json:x.y.z --push .`
 
 ## Testing
 
