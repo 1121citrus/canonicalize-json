@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 COMMAND=$(basename "${0}")
+
 TESTDATA=${TESTDATA:-'{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'}
 EXPECTED=$(cat <<EOF
 {
@@ -23,7 +24,7 @@ EXPECTED=$(cat <<EOF
 EOF
 )
 
-RESULT=$(echo -n "${TESTDATA}" | docker run -i --rm -e PRETTIFY=true 1121citrus/canonicalize-json:latest)
+RESULT=$(echo -n "${TESTDATA}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" -e PRETTIFY=true 1121citrus/canonicalize-json:${TAG:-latest})
 
 if [[ "${RESULT}" = "${EXPECTED}" ]]; then
     echo "[PASS] '${COMMAND}' succeeded"

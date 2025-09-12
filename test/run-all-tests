@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Determine the full pathname of the directory in which this script lives
 function script-dir() {

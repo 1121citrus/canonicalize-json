@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # A containerized JCS (RFC 8785) compliant JSON formatter, utilizing the Python JCS library.
 # Copyright (C) 2025 James Hanlon [mailto:jim@hanlonsoftware.com]
@@ -20,19 +20,18 @@ is_true() {
     echo "${1:?Need argument}" | grep -Eiq '^\s*(1|on|true|t|yes|y)\s*$'
 }
 
-set -e # -o errexit
-set -u # -o nounset
-
-# Set errtrace if it works in a subshell, disregard if unsupported
+# Set options where supported
 # shellcheck disable=SC3041
-(set -E 2> /dev/null) && set -E  # -o errtrace
-
-# Set pipefail if it works in a subshell, disregard if unsupported
+(set -E 2/dev/null) && set -E # -o errtrace
+# shellcheck disable=SC3041
+(set -e 2>/dev/null) && set -e # -o errexit
+# shellcheck disable=SC3041
+(set -u 2>/dev/null) && set -u # -o nounset
 # shellcheck disable=SC3040
 (set -o pipefail 2> /dev/null) && set -o pipefail
 if is_true "${DEBUG:-false}"; then
-    set -o xtrace
-    set -o verbose
+    (set -x 2>/dev/null) && set -x # -o xtrace
+    (set -v 2>/dev/null) && set -v # -o verbose
 fi
 
 prettify() {
@@ -41,7 +40,8 @@ prettify() {
     else
         cat /dev/stdin
     fi
-} 
+}
 
-python /usr/local/bin/canonicalize_json.py | prettify 
+# source "${__1121CITRUS_VENV_DIR}/activate"
+python3 "${__1121CITRUS_VENV_DIR}/canonicalize_json.py" | prettify 
 

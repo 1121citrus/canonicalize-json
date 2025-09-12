@@ -1,12 +1,14 @@
 # canonicalize-json
+
 A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785) compliant JSON formatter, utilizing the [Python JCS](https://pypi.org/project/jcs) library.
 
-The main author of the [Python JCS](https://pypi.org/project/jcs) library is [Anders Rundgren](https://github.com/cyberphone).
-The original source code is at [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3) including comprehensive test data.
+The main author of the [Python JCS](https://pypi.org/project/jcs) library is
+[Anders Rundgren](https://github.com/cyberphone). The original source code is at [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3) including comprehensive test data.
 
 ## Usage
 
 ### Ordinary canonicalization
+
 ```sh
 $ cat json | \
 > tee >(sed 's/^/BEFORE: /' >/dev/stderr) | \
@@ -15,7 +17,9 @@ $ cat json | \
 BEFORE: {"z":{"o":"172","d":"122","h":"7A"},"1":{"h":"31","o":"61","d":"49"}}
 AFTER: {"1":{"d":"49","h":"31","o":"61"},"z":{"d":"122","h":"7A","o":"172"}}
 ```
+
 ### Prettified canonicalization
+
 ```sh
 $ cat json | \
 > tee >(jq . | sed 's/^/BEFORE: /' >/dev/stderr) | \
@@ -49,20 +53,19 @@ AFTER: }
 
 ## Configuration
 
-Variable | Default | Notes
---- | --- | ---
-`DEBUG` | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`
-`PRETTIFY` | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty.
-`PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.
+| Variable       | Default | Notes                                                                                     |
+| -------------- | :-----: | ----------------------------------------------------------------------------------------- |
+| `DEBUG`        | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`                  |
+| `PRETTIFY`     | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty. |
+| `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.                                                                     |
 
 ## Building
 
-1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest .`
-1. `docker buildx build --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:x.y.z .`
+1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/ha-bash-base:x.y.z --push .`
 
 ## Testing
 
-Inididual tests are `test/*.test`. To run all tests iunvoke `bash test/run-all-tests`
+Individual tests are `test/*.test`. To run all tests invoke `bash test/run-all-tests`
 
 <!--
 ## Releasing

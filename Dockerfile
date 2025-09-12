@@ -13,29 +13,60 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-ARG PYTHON_VERSION=3.12.10
-ARG ALPINE_VERSION=3.21
-ARG AWSCLI_VERSION=2.26.5
+#ARG HA_BASH_BASE_TAG=1.0.0
+#FROM 1121citrus/ha-bash-base:${HA_BASH_BASE_TAG}
+#FROM bash:latest
 
-FROM python:${PYTHON_VERSION}-alpine${ALPINE_VERSION}
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-alpine
 
-ARG PYTHON_VERSION
-ENV PYTHON_VERSION=${PYTHON_VERSION}
+# Prevents Python from writing pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1
 
-ARG ALPINE_VERSION
-ENV ALPINE_VERSION=${ALPINE_VERSION}
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
+ENV PYTHONUNBUFFERED=1
 
+ENV __1121CITRUS_BASE_DIR=/usr/local/1121citrus
+ENV __1121CITRUS_BIN_DIR=${__1121CITRUS_BASE_DIR}/bin
+ENV __1121CITRUS_VENV_DIR=${__1121CITRUS_BIN_DIR}/canonicalize_json
+ENV BASH=/usr/local/bin/bash
+ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBUG=false
 ENV PRETTIFY=false
 
-RUN echo [INFO] install jq ... \
-    && apk add --no-cache jq \
-    && echo [INFO] install JCS - JSON Canonicalization python library ... \
-    && pip install jcs
+RUN APK_PACKAGES="jq" \
+    && apk update \
+    && apk add --no-cache ${APK_PACKAGES} \
+    && pip install --upgrade pip \
+    && true
+COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
-COPY --chmod=755 ./src/canonicalize-json ./src/canonicalize-json.py /usr/local/bin/
+WORKDIR ${__1121CITRUS_VENV_DIR}
+ENV PATH=${__1121CITRUS_VENV_DIR}/bin/:${PATH}
 
-WORKDIR /
+# Create a non-privileged user that the app will run under.
+# See https://docs.docker.com/go/dockerfile-user-best-practices/
+ARG UID=10001
+RUN adduser \
+        --disabled-password --gecos "" --shell "/sbin/nologin" \
+        --no-create-home --uid "${UID}" \
+        canonicalize-json
+
+# Download dependencies as a separate step to take advantage of Docker's caching.
+# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
+# Leverage a bind mount to requirements.txt to avoid having to copy them into
+# into this layer.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=requirements.txt,target=requirements.txt \
+    python -m pip install -r requirements.txt
+
+# Switch to the non-privileged user to run the application.
+USER canonicalize-json
+
+# Copy the source code into the container.
+COPY --chmod=755 ./src/canonicalize_json.py .
+
 ENTRYPOINT [ "/bin/sh", "-c" ]
 CMD [ "/usr/local/bin/canonicalize-json" ]
 
