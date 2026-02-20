@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 # Determine the full pathname of the directory in which this script lives
 function script-dir() {
     (
@@ -24,7 +26,7 @@ function script-dir() {
 }
 
 cd "$(script-dir)" || exit
-find . -name '*.test' -prune -print | sort | while read -r test; do
-    bash "${test}" || true
-done
+while read -r test; do
+    bash "${test}"
+done < <(find . -name '*.test' -prune -print | sort)
 

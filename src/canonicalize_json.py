@@ -25,14 +25,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 __author__      = 'Jim Hanlon <mailto:jim@hanlonsoftware.com>'
 __copyright__   = 'Copyright (c) 2025, James Hanlon'
 __credits__ = ['Jim Hanlon']
-__license__ = 'GPLv3'
+__license__ = 'AGPLv3'
 __version__ = '0.1'
 __maintainer__ = 'Jim Hanlon'
 __email__ = 'jim@hanlonsoftware.com'
 __status__ = 'Production'
 
-from sys import stdin
-from json import load
+from sys import stdin, stderr, exit as sys_exit
+from json import JSONDecodeError, load
 from jcs import canonicalize
 
-print(canonicalize(load(stdin)).decode('utf-8'), flush=True)
+def _fail(message: str) -> None:
+	stderr.write(f"{message}\n")
+	sys_exit(1)
+
+
+def main() -> None:
+	try:
+		data = load(stdin)
+	except JSONDecodeError as exc:
+		_fail(f"Invalid JSON input: {exc}")
+
+	try:
+		output = canonicalize(data).decode('utf-8')
+	except Exception as exc:  # jcs raises generic exceptions
+		_fail(f"Canonicalization failed: {exc}")
+
+	print(output, flush=True)
+
+
+if __name__ == '__main__':
+	main()

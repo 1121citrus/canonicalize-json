@@ -7,6 +7,8 @@ The main author of the [Python JCS](https://pypi.org/project/jcs) library is
 
 ## Usage
 
+`PRETTIFY` mode uses `jq` when running the helper script directly; the published container already includes it.
+
 ### Ordinary canonicalization
 
 ```sh
@@ -60,6 +62,8 @@ AFTER: }
 | `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.                                                                     |
 
 ## Building
+
+BuildKit is required because the Dockerfile uses cache and bind mounts during dependency installation (enabled automatically when using `docker buildx`).
 
 1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/canonicalize-json:x.y.z --push .`
 

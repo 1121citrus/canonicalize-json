@@ -42,6 +42,6 @@ prettify() {
     fi
 }
 
-# source "${__1121CITRUS_VENV_DIR}/activate"
-python3 "${__1121CITRUS_VENV_DIR}/canonicalize_json.py" | prettify 
+# source "${__1121CITRUS_APP_DIR}/activate"
+python3 "${__1121CITRUS_APP_DIR}/canonicalize_json.py" | prettify 
 

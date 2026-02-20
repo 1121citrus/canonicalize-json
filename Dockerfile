@@ -27,9 +27,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
-ENV __1121CITRUS_BASE_DIR=/usr/local/1121citrus
-ENV __1121CITRUS_BIN_DIR=${__1121CITRUS_BASE_DIR}/bin
-ENV __1121CITRUS_VENV_DIR=${__1121CITRUS_BIN_DIR}/canonicalize_json
+ENV __1121CITRUS_APP_DIR=/usr/local/1121citrus/app
 ENV BASH=/usr/local/bin/bash
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBUG=false
@@ -42,8 +40,8 @@ RUN APK_PACKAGES="jq" \
     && true
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
-WORKDIR ${__1121CITRUS_VENV_DIR}
-ENV PATH=${__1121CITRUS_VENV_DIR}/bin/:${PATH}
+WORKDIR ${__1121CITRUS_APP_DIR}
+ENV PATH=${__1121CITRUS_APP_DIR}/bin/:${PATH}
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
@@ -54,6 +52,7 @@ RUN adduser \
         canonicalize-json
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
+# BuildKit is required for the cache and bind mounts below.
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # into this layer.

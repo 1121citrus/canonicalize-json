@@ -1,15 +1,48 @@
 #!/usr/bin/env bash
 
-COMMAND=$(basename "${0}")
+TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
 
-TESTDATA=${TESTDATA:-'{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'}
-EXPECTED=${EXPECTED:-'{"1":{"dec":"49","hex":"31","oct":"61"},"A":{"dec":"65","hex":"41","oct":"101"},"z":{"dec":"122","hex":"7A","oct":"172"}}'}
+setup() {
+    return 0
+}
 
-RESULT=$(echo -n "${TESTDATA}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" 1121citrus/canonicalize-json:${TAG:-latest})
+test_canonicalize_json_sorted_output() {
+    local input expected output
+    input=${TESTDATA:-'{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'}
+    expected=${EXPECTED:-'{"1":{"dec":"49","hex":"31","oct":"61"},"A":{"dec":"65","hex":"41","oct":"101"},"z":{"dec":"122","hex":"7A","oct":"172"}}'}
 
-if [[ "${RESULT}" = "${EXPECTED}" ]]; then
-    echo "[PASS] '${COMMAND}' succeeded"
-else
-    echo "[FAIL] '${COMMAND}') failed -- expected '${EXPECTED}' -- got '${RESULT}'" >/dev/stderr
-    exit 1
-fi
+    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': canonicalization output matches expected"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+run_tests() {
+    local passed=0
+    local tests=(
+        test_canonicalize_json_sorted_output
+    )
+
+    setup || { echo "ERROR: Setup failed"; return 1; }
+
+    echo "Running tests for canonicalize-json canonicalize mode..."
+    echo "======================================================"
+
+    for test in "${tests[@]}"; do
+        "${test}" && ((passed++)) || :
+    done
+
+    local failed=$((${#tests[@]} - passed))
+    echo "======================================================"
+    echo "Results: ${passed} passed, ${failed} failed"
+    return "${failed}"
+}
+
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && run_tests
