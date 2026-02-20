@@ -31,8 +31,9 @@ ENV PRETTIFY=false
 
 RUN APK_PACKAGES="jq" \
     && apk update \
+    && apk upgrade --no-cache \
     && apk add --no-cache ${APK_PACKAGES} \
-    && pip install --upgrade pip \
+    && python -m pip install --upgrade pip==25.3 \
     && true
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
