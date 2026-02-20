@@ -13,10 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#ARG HA_BASH_BASE_TAG=1.0.0
-#FROM 1121citrus/ha-bash-base:${HA_BASH_BASE_TAG}
-#FROM bash:latest
-
 ARG PYTHON_VERSION=3.13
 FROM python:${PYTHON_VERSION}-alpine
 
