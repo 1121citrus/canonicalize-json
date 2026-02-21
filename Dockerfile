@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-ARG PYTHON_VERSION=3.13
+ARG PYTHON_VERSION=3.13.7
 FROM python:${PYTHON_VERSION}-alpine
 
 # Prevents Python from writing pyc files.
@@ -33,7 +33,7 @@ RUN APK_PACKAGES="jq" \
     && apk update \
     && apk upgrade --no-cache \
     && apk add --no-cache ${APK_PACKAGES} \
-    && python -m pip install --upgrade pip==25.3 \
+    && python -m pip install --upgrade pip==26.0 \
     && true
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
@@ -63,6 +63,5 @@ USER canonicalize-json
 # Copy the source code into the container.
 COPY --chmod=755 ./src/canonicalize_json.py .
 
-ENTRYPOINT [ "/bin/sh", "-c" ]
-CMD [ "/usr/local/bin/canonicalize-json" ]
+ENTRYPOINT [ "/usr/local/bin/canonicalize-json" ]
 
