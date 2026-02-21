@@ -6,27 +6,15 @@ set -euo pipefail
 function script-dir() {
     (
         local srcpath="${BASH_SOURCE[0]}"
-        local symlinkdir=
-        # Resolve symlinks recursively
-        while [[ -L "${srcpath}" ]]; do
-            # Get symlink directory
-            symlinkdir="$(cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 && pwd || exit)"
-            # Resolve symlink target (relative or absolute)
-            srcpath="$(readlink "${srcpath}")"
-            # Check if candidate path is relative or absolute
-            if [[ "${srcpath}" != /* ]]; then
-                # Candidate path is relative, resolve to full path
-                srcpath="${symlinkdir}/${srcpath}"
-            fi
-        done
-        # Get final script directory path from fully resolved source path
-        cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 || exit
-        pwd
+        local scriptdir=
+        scriptdir="$(cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 && pwd || exit)"
+        local scriptpath=
+        scriptpath="$(realpath "${scriptdir}")"
+        echo "${scriptpath}"
     )
 }
 
-cd "$(script-dir)" || exit
 while read -r test; do
+    echo "Running test: ${test}"
     bash "${test}"
-done < <(find . -name '*.test' -prune -print | sort)
-
+done < <(find "$(script-dir)/bin" -mindepth 1 -maxdepth 1 | sort)

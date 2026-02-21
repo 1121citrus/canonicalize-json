@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+
+TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
+
+setup() {
+    return 0
+}
+
+test_prettify_json_output() {
+    local input expected output indent
+    input=${TESTDATA:-'{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'}
+    indent=${INDENT:-2}
+    if [[ "${indent}" == "4" ]]; then
+        expected=$(cat <<'EOF'
+{
+    "1": {
+        "dec": "49",
+        "hex": "31",
+        "oct": "61"
+    },
+    "A": {
+        "dec": "65",
+        "hex": "41",
+        "oct": "101"
+    },
+    "z": {
+        "dec": "122",
+        "hex": "7A",
+        "oct": "172"
+    }
+}
+EOF
+)
+    else
+        expected=$(cat <<'EOF'
+{
+  "1": {
+    "dec": "49",
+    "hex": "31",
+    "oct": "61"
+  },
+  "A": {
+    "dec": "65",
+    "hex": "41",
+    "oct": "101"
+  },
+  "z": {
+    "dec": "122",
+    "hex": "7A",
+    "oct": "172"
+  }
+}
+EOF
+)
+    fi
+
+    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" -e PRETTIFY=true -e INDENT="${indent}" "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': prettified output matches expected"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_pretty_print_alias() {
+        local input expected output indent
+        input='{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'
+        indent=${INDENT:-2}
+        if [[ "${indent}" == "4" ]]; then
+            expected=$(cat <<'EOF'
+{
+    "1": {
+        "dec": "49",
+        "hex": "31",
+        "oct": "61"
+    },
+    "A": {
+        "dec": "65",
+        "hex": "41",
+        "oct": "101"
+    },
+    "z": {
+        "dec": "122",
+        "hex": "7A",
+        "oct": "172"
+    }
+}
+EOF
+)
+        else
+            expected=$(cat <<'EOF'
+{
+  "1": {
+    "dec": "49",
+    "hex": "31",
+    "oct": "61"
+  },
+  "A": {
+    "dec": "65",
+    "hex": "41",
+    "oct": "101"
+  },
+  "z": {
+    "dec": "122",
+    "hex": "7A",
+    "oct": "172"
+  }
+}
+EOF
+)
+        fi
+
+    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" -e PRETTY_PRINT=true -e INDENT="${indent}" "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': PRETTY_PRINT alias works"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+run_tests() {
+    local passed=0
+    local tests=(
+        test_prettify_json_output
+        test_pretty_print_alias
+    )
+
+    setup || { echo "ERROR: Setup failed"; return 1; }
+
+    echo "Running tests for canonicalize-json prettify mode..."
+    echo "===================================================="
+
+    for test in "${tests[@]}"; do
+        "${test}" && ((passed++)) || :
+    done
+
+    local failed=$((${#tests[@]} - passed))
+    echo "===================================================="
+    echo "Results: ${passed} passed, ${failed} failed"
+    return "${failed}"
+}
+
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && run_tests

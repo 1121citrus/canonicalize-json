@@ -32,13 +32,11 @@ if is_true "${DEBUG:-false}"; then
 fi
 
 prettify() {
-    if is_true "${PRETTIFY:-${PRETTY_PRINT:-false}}"; then
+    if is_true "${PRETTIFY:-false}" || is_true "${PRETTY_PRINT:-false}"; then
         cat /dev/stdin | jq .
     else
         cat /dev/stdin
     fi
 }
 
-# source "${__1121CITRUS_APP_DIR}/activate"
 python3 "${__1121CITRUS_APP_DIR}/canonicalize_json.py" | prettify 
-

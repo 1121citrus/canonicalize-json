@@ -24,10 +24,45 @@ test_canonicalize_json_sorted_output() {
     fi
 }
 
+test_canonicalize_primitives_and_array() {
+    local input expected output
+    input='{"b":true,"a":null,"c":[3,2,1],"d":"text"}'
+    expected='{"a":null,"b":true,"c":[3,2,1],"d":"text"}'
+
+    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': primitives and arrays preserved"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_invalid_json() {
+    local input output status
+    input='{"a":}'
+
+    output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}" 2>&1)
+    status=$?
+
+    if [[ ${status} -ne 0 && "${output}" == *"Invalid JSON input"* ]]; then
+        echo "PASS '${FUNCNAME[0]}': invalid JSON rejected"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected invalid JSON error. Status: ${status} Output: '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
 run_tests() {
     local passed=0
     local tests=(
         test_canonicalize_json_sorted_output
+        test_canonicalize_primitives_and_array
+        test_canonicalize_invalid_json
     )
 
     setup || { echo "ERROR: Setup failed"; return 1; }
