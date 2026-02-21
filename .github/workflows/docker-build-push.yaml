@@ -1,6 +1,7 @@
+---
 name: Build and Push (staging)
 
-on:
+"on":
   push:
     branches:
       - staging
@@ -10,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_IMAGE: python:3.13-alpine
+      IMAGE_NAME: >-
+        ${{ secrets.DOCKERHUB_USERNAME }}/canonicalize-json
 
     steps:
       - name: Checkout Code
@@ -21,7 +24,8 @@ jobs:
       - name: Compute base image digest
         id: base-digest
         run: |
-          digest=$(docker buildx imagetools inspect "${BASE_IMAGE}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          digest=$(docker buildx imagetools inspect "${BASE_IMAGE}" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
           echo "current=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached base image digest
@@ -42,31 +46,35 @@ jobs:
             prev=$(cat .cache/base-image-digest/last)
           fi
           echo "previous=${prev}" >> "$GITHUB_OUTPUT"
-          if [[ "${prev}" == "${{ steps.base-digest.outputs.current }}" ]]; then
+          if [[ "${prev}" == \
+            "${{ steps.base-digest.outputs.current }}" ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "${{ steps.base-digest.outputs.current }}" > .cache/base-image-digest/last
+          current="${{ steps.base-digest.outputs.current }}"
+          echo "${current}" > .cache/base-image-digest/last
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
-        if: steps.check-base.outputs.changed == 'true'
+        if: ${{ steps.check-base.outputs.changed == 'true' }}
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Generate Datetime Tag
         id: generate_tag
-        run: echo "version=staging-$(date -u +'%Y.%m.%d.%H%M%S')" >> "$GITHUB_ENV"
+        run: >-
+          echo "version=staging-$(date -u +'%Y.%m.%d.%H%M%S')" >>
+          "$GITHUB_ENV"
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
-        if: steps.check-base.outputs.changed == 'true'
+        if: ${{ steps.check-base.outputs.changed == 'true' }}
         with:
           context: .
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/canonicalize-json:${{ env.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/canonicalize-json:staging
+            ${{ env.IMAGE_NAME }}:${{ env.version }}
+            ${{ env.IMAGE_NAME }}:staging
