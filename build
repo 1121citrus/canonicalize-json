@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -xv
+docker buildx build --sbom=true \
+                    --provenance=true \
+                    --provenance=mode=max \
+                    --platform linux/amd64,linux/arm64 \
+                    -t 1121citrus/canonicalize-json:latest \
+                    -t 1121citrus/canonicalize-json:1.0.2 \
+			.
+
+trivy image 1121citrus/canonicalize-json:latest
