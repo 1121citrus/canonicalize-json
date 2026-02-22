@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Determine the full pathname of the directory in which this script lives
-function script-dir() {
+function script_dir() {
     (
         local srcpath="${BASH_SOURCE[0]}"
         local scriptdir=
@@ -14,7 +14,7 @@ function script-dir() {
     )
 }
 
-while read -r test; do
-    echo "Running test: ${test}"
-    bash "${test}"
-done < <(find "$(script-dir)/bin" -mindepth 1 -maxdepth 1 | sort)
+while read -r testfile; do
+    echo "Running test: ${testfile}"
+    bash "${testfile}"
+done < <(find "$(script_dir)/bin" -mindepth 1 -maxdepth 1 -type f | sort)

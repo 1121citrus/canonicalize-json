@@ -7,7 +7,7 @@ The main author of the [Python JCS](https://pypi.org/project/jcs) library is
 
 ## Usage
 
-`PRETTIFY` mode uses `jq` when running the helper script directly; the published container already includes it.
+`PRETTIFY` mode requires `jq` to be installed locally when running the helper script directly; the published container already includes it.
 
 ### Ordinary canonicalization
 
@@ -60,6 +60,7 @@ AFTER: }
 | `DEBUG`        | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`                  |
 | `PRETTIFY`     | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty. |
 | `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.                                                                     |
+| `INDENT`       |   `2`   | When prettifying, pass this indent value to `jq --indent`. Valid range: `0`–`7`.            |
 
 ## Building
 
@@ -69,7 +70,7 @@ BuildKit is required because the Dockerfile uses cache and bind mounts during de
 
 ## Testing
 
-Individual tests are `test/*.test`. To run all tests invoke `bash test/run-all-tests`
+Individual tests are in `test/bin`. To run all tests invoke `bash test/run-all-tests`
 
 <!--
 ## Releasing

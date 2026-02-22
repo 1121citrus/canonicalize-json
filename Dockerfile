@@ -24,16 +24,15 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 ENV __1121CITRUS_APP_DIR=/usr/local/1121citrus/app
-ENV BASH=/usr/local/bin/bash
-ENV DEBIAN_FRONTEND=noninteractive
 ENV DEBUG=false
 ENV PRETTIFY=false
+ENV INDENT=2
 
 RUN APK_PACKAGES="jq" \
     && apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache ${APK_PACKAGES} \
-    && python -m pip install --upgrade pip==26.0 \
+    && apk add --no-cache "${APK_PACKAGES}" \
+    && python -m pip install --upgrade "pip>=26" \
     && true
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
@@ -52,7 +51,7 @@ RUN adduser \
 # BuildKit is required for the cache and bind mounts below.
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
+# this layer.
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install -r requirements.txt

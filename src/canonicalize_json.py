@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 canonicalize-json.py: Canonicalize JSON per JCS (RFC 8785).
@@ -22,8 +22,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-__author__      = 'Jim Hanlon <mailto:jim@hanlonsoftware.com>'
-__copyright__   = 'Copyright (c) 2025, James Hanlon'
+__author__ = 'Jim Hanlon <mailto:jim@hanlonsoftware.com>'
+__copyright__ = 'Copyright (c) 2025, James Hanlon'
 __credits__ = ['Jim Hanlon']
 __license__ = 'AGPLv3'
 __version__ = '0.1'
@@ -36,22 +36,22 @@ from json import JSONDecodeError, load
 from jcs import canonicalize
 
 def _fail(message: str) -> None:
-	stderr.write(f"{message}\n")
-	sys_exit(1)
+    stderr.write(f"{message}\n")
+    sys_exit(1)
 
 
 def main() -> None:
-	try:
-		data = load(stdin)
-	except JSONDecodeError as exc:
-		_fail(f"Invalid JSON input: {exc}")
+    try:
+        data = load(stdin)
+    except JSONDecodeError as exc:
+        _fail(f"Invalid JSON input: {exc}")
 
-	try:
-		output = canonicalize(data).decode('utf-8')
-	except Exception as exc:  # jcs raises generic exceptions
-		_fail(f"Canonicalization failed: {exc}")
+    try:
+        output = canonicalize(data).decode('utf-8')
+    except Exception as exc:  # jcs raises generic exceptions
+        _fail(f"Canonicalization failed: {exc}")
 
-	print(output, flush=True)
+    print(output, flush=True)
 
 
 if __name__ == '__main__':

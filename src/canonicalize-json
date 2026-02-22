@@ -33,9 +33,9 @@ fi
 
 prettify() {
     if is_true "${PRETTIFY:-false}" || is_true "${PRETTY_PRINT:-false}"; then
-        cat /dev/stdin | jq .
+        jq --indent "${INDENT:-2}" .
     else
-        cat /dev/stdin
+        cat
     fi
 }
 
