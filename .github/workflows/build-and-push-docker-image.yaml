@@ -17,6 +17,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Get Latest Tag
         id: get-latest-tag
         uses: actions-ecosystem/action-get-latest-tag@v1
@@ -117,6 +120,9 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
+          sbom: true
+          provenance: mode=max
           tags: |
             ${{ env.IMAGE_NAME }}:${{ needs.semver.outputs.new_version }}
             ${{ env.IMAGE_NAME }}:latest
