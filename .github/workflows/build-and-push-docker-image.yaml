@@ -23,7 +23,7 @@ jobs:
       - name: Get Latest Tag
         id: get-latest-tag
         run: |
-          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Determine Version Bump Type
@@ -47,7 +47,7 @@ jobs:
             minor) minor=$((minor+1)); patch=0 ;;
             *)     patch=$((patch+1)) ;;
           esac
-          new_version="v${major}.${minor}.${patch}"
+          new_version="${major}.${minor}.${patch}"
           echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
 
       - name: Push New Tag
