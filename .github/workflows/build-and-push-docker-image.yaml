@@ -9,20 +9,22 @@ name: Semantic Versioning, Docker Build, Push, and Scan
 jobs:
   semver:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     outputs:
       new_version: ${{ steps.bump-semver.outputs.new_version }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        with:
+          fetch-depth: 0
 
       - name: Get Latest Tag
         id: get-latest-tag
-        uses: actions-ecosystem/action-get-latest-tag@v1
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Determine Version Bump Type
         id: determine-bump-type
@@ -36,24 +38,26 @@ jobs:
 
       - name: Bump SemVer
         id: bump-semver
-        uses: actions-ecosystem/action-bump-semver@v1
-        with:
-          current_version: ${{ steps.get-latest-tag.outputs.tag }}
-          level: ${{ env.level }}
-
-      - name: Set New Version Output
-        id: set-new-version
-        run: >-
-          echo "new_version=${{ steps.bump-semver.outputs.new_version }}" >>
-          "$GITHUB_ENV"
+        run: |
+          current="${{ steps.get-latest-tag.outputs.tag }}"
+          version="${current#v}"
+          IFS='.' read -r major minor patch <<< "${version}"
+          case "${{ env.level }}" in
+            major) major=$((major+1)); minor=0; patch=0 ;;
+            minor) minor=$((minor+1)); patch=0 ;;
+            *)     patch=$((patch+1)) ;;
+          esac
+          new_version="v${major}.${minor}.${patch}"
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
 
       - name: Push New Tag
-        uses: actions-ecosystem/action-push-tag@v1
-        with:
-          tag: ${{ env.new_version }}
-          message: >-
-            ${{ env.new_version }}: PR #${{ github.event.pull_request.number }}
-            ${{ github.event.pull_request.title }}
+        run: |
+          new_version="${{ steps.bump-semver.outputs.new_version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git tag -a "${new_version}" -m "${new_version}: PR #${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}"
+          git push origin "${new_version}"
 
   docker:
     needs: semver
@@ -68,6 +72,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
