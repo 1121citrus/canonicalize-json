@@ -16,6 +16,12 @@
 ARG PYTHON_VERSION=3.13.7
 FROM python:${PYTHON_VERSION}-alpine
 
+ARG AUTHORS='Jim Hanlon «jim@hanlonsoftware.com»'
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
+ARG LICENSE=AGPL-3.0-or-later
+ARG VERSION=dev
+
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -27,6 +33,25 @@ ENV __1121CITRUS_APP_DIR=/usr/local/1121citrus/app
 ENV DEBUG=false
 ENV PRETTIFY=false
 ENV INDENT=2
+
+# Embed build metadata in env vars for runtime access.
+ENV \
+    APP_AUTHORS="${AUTHORS}" \
+    APP_BUILD_DATE="${BUILD_DATE}" \
+    APP_COMMIT="${GIT_COMMIT}" \
+    APP_LICENSE="${LICENSE}" \
+    APP_VERSION="${VERSION}"
+
+# OCI standard labels
+LABEL org.opencontainers.image.authors="${AUTHORS}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+LABEL org.opencontainers.image.documentation="https://github.com/1121citrus/canonicalize-json"
+LABEL org.opencontainers.image.licenses="${LICENSE}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}"
+LABEL org.opencontainers.image.source="https://github.com/1121citrus/canonicalize-json"
+LABEL org.opencontainers.image.title="canonicalize-json"
+LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/1121citrus/canonicalize-json"
+LABEL org.opencontainers.image.vendor="1121 Citrus, LTD"
 
 RUN APK_PACKAGES="jq" \
     && apk update \

@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 
+# canonicalize-json: run the full test suite.
+#
+# Copyright (C) 2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 set -euo pipefail
 
-# Determine the full pathname of the directory in which this script lives
-function script_dir() {
-    (
-        local srcpath="${BASH_SOURCE[0]}"
-        local scriptdir=
-        scriptdir="$(cd -P "$(dirname "${srcpath}")" >/dev/null 2>&1 && pwd || exit)"
-        local scriptpath=
-        scriptpath="$(realpath "${scriptdir}")"
-        echo "${scriptpath}"
-    )
-}
+whereami=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
+status=0
 while read -r testfile; do
     echo "Running test: ${testfile}"
-    bash "${testfile}"
-done < <(find "$(script_dir)/bin" -mindepth 1 -maxdepth 1 -type f | sort)
+    bash "${testfile}" || status=1
+done < <(find "${whereami}/bin" -mindepth 1 -maxdepth 1 -type f | sort)
+exit $status

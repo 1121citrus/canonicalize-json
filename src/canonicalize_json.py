@@ -36,11 +36,13 @@ from json import JSONDecodeError, load
 from jcs import canonicalize
 
 def _fail(message: str) -> None:
+    """Write *message* to stderr and exit with status 1."""
     stderr.write(f"{message}\n")
     sys_exit(1)
 
 
 def main() -> None:
+    """Read JSON from stdin, canonicalize per JCS (RFC 8785), and print to stdout."""
     try:
         data = load(stdin)
     except JSONDecodeError as exc:
@@ -55,4 +57,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-	main()
+    main()

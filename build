@@ -1,11 +1,64 @@
 #!/usr/bin/env bash
-set -xv
-docker buildx build --sbom=true \
-                    --provenance=true \
-                    --provenance=mode=max \
-                    --platform linux/amd64,linux/arm64 \
-                    -t 1121citrus/canonicalize-json:latest \
-                    -t 1121citrus/canonicalize-json:1.0.2 \
-			.
+# shellcheck shell=bash
 
-trivy image 1121citrus/canonicalize-json:latest
+set -Eeuo pipefail
+
+cd "$(dirname "$0")" || exit 1
+
+readonly IMAGE="1121citrus/canonicalize-json"
+readonly LOCAL_TAG="canonicalize-json"
+
+VERSION="${VERSION:-dev}"
+GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+BUILD_DATE="$(date -u +%Y%m%dT%H%M%S)"
+PUSH="${PUSH:-false}"
+
+echo "[INFO] build start ${IMAGE}:${VERSION} commit:${GIT_COMMIT} date:${BUILD_DATE}"
+
+echo "[INFO] linting Dockerfile"
+docker run --rm -i hadolint/hadolint < Dockerfile
+
+echo "[INFO] building ${IMAGE}:${VERSION}"
+docker buildx build \
+    --build-arg "VERSION=${VERSION}" \
+    --build-arg "GIT_COMMIT=${GIT_COMMIT}" \
+    --build-arg "BUILD_DATE=${BUILD_DATE}" \
+    --tag "${IMAGE}:${VERSION}" \
+    --tag "${IMAGE}:latest" \
+    --tag "${LOCAL_TAG}" \
+    --load \
+    .
+
+echo "[INFO] scanning ${IMAGE}:${VERSION} with Trivy"
+docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    aquasec/trivy:latest image \
+        --quiet \
+        --severity HIGH,CRITICAL,MEDIUM,LOW \
+        "${IMAGE}:${VERSION}"
+
+if command -v docker-scout >/dev/null 2>&1 || docker scout version >/dev/null 2>&1; then
+    echo "[INFO] scanning ${IMAGE}:${VERSION} with Docker Scout"
+    docker scout cves \
+        --only-severity critical,high,medium,low \
+        "${IMAGE}:${VERSION}"
+else
+    echo "[WARN] docker scout not available — skipping Scout scan"
+fi
+
+if [[ "${PUSH}" == "true" ]]; then
+    echo "[INFO] pushing ${IMAGE}:${VERSION} (multi-platform)"
+    docker buildx build \
+        --sbom=true \
+        --provenance=mode=max \
+        --platform linux/amd64,linux/arm64 \
+        --build-arg "VERSION=${VERSION}" \
+        --build-arg "GIT_COMMIT=${GIT_COMMIT}" \
+        --build-arg "BUILD_DATE=${BUILD_DATE}" \
+        --tag "${IMAGE}:${VERSION}" \
+        --tag "${IMAGE}:latest" \
+        --push \
+        .
+fi
+
+echo "[INFO] build complete ${IMAGE}:${VERSION}"

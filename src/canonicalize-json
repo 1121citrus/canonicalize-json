@@ -39,4 +39,4 @@ prettify() {
     fi
 }
 
-python3 "${__1121CITRUS_APP_DIR}/canonicalize_json.py" | prettify 
+python3 "${__1121CITRUS_APP_DIR}/canonicalize_json.py" | prettify

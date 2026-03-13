@@ -1,9 +1,28 @@
 # canonicalize-json
 
+[![CI](https://github.com/1121citrus/canonicalize-json/actions/workflows/ci.yml/badge.svg)](https://github.com/1121citrus/canonicalize-json/actions/workflows/ci.yml)
+
 A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785) compliant JSON formatter, utilizing the [Python JCS](https://pypi.org/project/jcs) library.
 
 The main author of the [Python JCS](https://pypi.org/project/jcs) library is
 [Anders Rundgren](https://github.com/cyberphone). The original source code is at [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3) including comprehensive test data.
+
+## Contents
+
+- [Contents](#contents)
+- [Prerequisites](#prerequisites)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Security considerations](#security-considerations)
+- [Building](#building)
+- [Testing](#testing)
+- [CI/CD](#cicd)
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (with
+  [buildx](https://docs.docker.com/build/buildx/) for building images)
+- Bash 4.0+ for running the test suite and build script
 
 ## Usage
 
@@ -62,18 +81,86 @@ AFTER: }
 | `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.                                                                     |
 | `INDENT`       |   `2`   | When prettifying, pass this indent value to `jq --indent`. Valid range: `0`–`7`.            |
 
+## Security considerations
+
+- **No secrets required:** This tool processes JSON via stdin/stdout and
+  requires no authentication credentials or API keys.
+- **Non-root execution:** The container runs as a non-privileged user
+  (`canonicalize-json`, UID 10001).
+- **No network access needed:** The container does not make network
+  calls at runtime. Add `--network=none` for full isolation:
+  ```bash
+  echo '{"b":1,"a":2}' | docker run -i --rm --network=none 1121citrus/canonicalize-json:latest
+  ```
+- **Read-only rootfs:** For hardened deployments, run with
+  `--read-only --tmpdir /tmp`.
+
 ## Building
 
-BuildKit is required because the Dockerfile uses cache and bind mounts during dependency installation (enabled automatically when using `docker buildx`).
+BuildKit is required because the Dockerfile uses cache and bind mounts
+during dependency installation (enabled automatically when using
+`docker buildx`).
 
-1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/canonicalize-json:x.y.z --push .`
+```bash
+VERSION=x.y.z ./build
+```
+
+To build and push to Docker Hub (multi-platform `linux/amd64` + `linux/arm64`):
+
+```bash
+VERSION=x.y.z PUSH=true ./build
+```
+
+The build script will:
+
+1. Lint the Dockerfile with [hadolint](https://github.com/hadolint/hadolint)
+2. Build the image locally and tag as `1121citrus/canonicalize-json:VERSION`
+   and `canonicalize-json`
+3. Scan with [Trivy](https://github.com/aquasecurity/trivy) and
+   [Docker Scout](https://docs.docker.com/scout/) (if available) for
+   vulnerabilities
+4. Optionally push a multi-platform image to Docker Hub when `PUSH=true`
 
 ## Testing
 
-Individual tests are in `test/bin`. To run all tests invoke `bash test/run-all-tests`
+All tests require a built Docker image. Build first, then run:
 
-<!--
-## Releasing
+```bash
+./build
+bash test/run-all-tests
+```
 
-1. [Draft a new release on GitHub](https://github.com/1121citrus/canonicalize-json/releases/new)
--->
+Individual test files can also be run directly:
+
+| Test file | What it validates |
+| --- | --- |
+| `test/bin/canonicalize` | Key sorting, primitive/array handling, invalid JSON rejection |
+| `test/bin/prettify` | `PRETTIFY`/`PRETTY_PRINT` env vars, custom indent values |
+| `test/bin/image-structure` | Non-root user, installed binaries (`python3`, `jq`), nologin shell, `jcs` module |
+| `test/bin/env-metadata` | Build-time `APP_*` env vars and OCI labels |
+
+## CI/CD
+
+GitHub Actions runs on every push to `main`/`master`/`staging` and on
+pull requests. The pipeline is defined in `.github/workflows/ci.yml`.
+
+| Stage | What it does |
+| --- | --- |
+| **lint** | hadolint on Dockerfile, shellcheck on all shell scripts and tests |
+| **build** | Builds the Docker image and uploads it as an artifact |
+| **test** | Downloads the artifact and runs `test/run-all-tests` |
+| **scan** | Trivy vulnerability scan at all severity levels |
+| **push** | Multi-platform build + push to Docker Hub (tags, `main`/`master`, and `staging` only) |
+
+### Required repository secrets
+
+| Secret | Description |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub [access token](https://docs.docker.com/security/for-developers/access-tokens/) |
+
+### Tagging strategy
+
+- Pushes to `main`/`master`: tagged as `edge`
+- Pushes to `staging`: tagged as `staging-YYYY.MM.DD.HHMMSS` and `staging`
+- Version tags (`v1.2.3`): tagged as `1.2.3` and `latest`

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+# canonicalize-json: verify build-time metadata is embedded correctly.
+#
+# Copyright (C) 2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+set -euo pipefail
+
+TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
+
+setup() {
+    run_image() {
+        docker run --rm --entrypoint /bin/sh "${TARGET_IMAGE}" -c "$1" 2>&1
+    }
+    export -f run_image
+
+    inspect_label() {
+        docker inspect --format "{{index .Config.Labels \"$1\"}}" "${TARGET_IMAGE}" 2>&1
+    }
+    export -f inspect_label
+}
+
+_assert_env_set() {
+    local var_name=$1
+    local output
+    output=$(run_image "printenv ${var_name}") || {
+        echo "FAIL '${FUNCNAME[1]}': ${var_name} not set in container"; return 1
+    }
+    if [[ -n "${output}" ]]; then
+        echo "PASS '${FUNCNAME[1]}': ${var_name}='${output}'"
+    else
+        echo "FAIL '${FUNCNAME[1]}': ${var_name} is empty"
+        return 1
+    fi
+}
+
+_assert_label_set() {
+    local label=$1
+    local output
+    output=$(inspect_label "${label}") || {
+        echo "FAIL '${FUNCNAME[1]}': could not inspect label ${label}"; return 1
+    }
+    if [[ -n "${output}" && "${output}" != "<no value>" ]]; then
+        echo "PASS '${FUNCNAME[1]}': ${label}='${output}'"
+    else
+        echo "FAIL '${FUNCNAME[1]}': label ${label} is missing or empty"
+        return 1
+    fi
+}
+
+test_env_app_version()    { _assert_env_set APP_VERSION; }
+test_env_app_commit()     { _assert_env_set APP_COMMIT; }
+test_env_app_build_date() { _assert_env_set APP_BUILD_DATE; }
+test_env_app_license()    { _assert_env_set APP_LICENSE; }
+test_env_app_authors()    { _assert_env_set APP_AUTHORS; }
+
+test_label_authors()       { _assert_label_set "org.opencontainers.image.authors"; }
+test_label_source()        { _assert_label_set "org.opencontainers.image.source"; }
+test_label_licenses()      { _assert_label_set "org.opencontainers.image.licenses"; }
+test_label_title()         { _assert_label_set "org.opencontainers.image.title"; }
+test_label_documentation() { _assert_label_set "org.opencontainers.image.documentation"; }
+
+test_license_is_agpl() {
+    local output
+    output=$(run_image "printenv APP_LICENSE") || {
+        echo "FAIL '${FUNCNAME[0]}': APP_LICENSE not set"; return 1
+    }
+    if [[ "${output}" == "AGPL-3.0-or-later" ]]; then
+        echo "PASS '${FUNCNAME[0]}': APP_LICENSE is AGPL-3.0-or-later"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected AGPL-3.0-or-later, got '${output}'"
+        return 1
+    fi
+}
+
+run_tests() {
+    local passed=0
+    local tests=(
+        test_env_app_version
+        test_env_app_commit
+        test_env_app_build_date
+        test_env_app_license
+        test_env_app_authors
+        test_label_authors
+        test_label_source
+        test_label_licenses
+        test_label_title
+        test_label_documentation
+        test_license_is_agpl
+    )
+
+    setup || { echo "ERROR: Setup failed"; return 1; }
+
+    echo "Running tests for env metadata and OCI labels..."
+    echo "========================================================"
+
+    for test in "${tests[@]}"; do
+        "${test}" && ((passed++)) || :
+    done
+
+    local failed=$(( ${#tests[@]} - passed ))
+    echo "========================================================"
+    echo "Results: ${passed} passed, ${failed} failed"
+    return "${failed}"
+}
+
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && run_tests

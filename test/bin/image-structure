@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+# canonicalize-json: verify image filesystem structure and user configuration.
+#
+# Copyright (C) 2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+set -euo pipefail
+
+TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
+
+setup() {
+    run_image() {
+        docker run --rm --entrypoint /bin/sh "${TARGET_IMAGE}" -c "$1" 2>&1
+    }
+    export -f run_image
+}
+
+test_runs_as_non_root() {
+    local output
+    output=$(run_image "id -u") || {
+        echo "FAIL '${FUNCNAME[0]}': command exited non-zero"; return 1
+    }
+    if [[ "${output}" == "10001" ]]; then
+        echo "PASS '${FUNCNAME[0]}': container runs as UID 10001"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected UID 10001, got '${output}'"
+        return 1
+    fi
+}
+
+test_user_is_canonicalize_json() {
+    local output
+    output=$(run_image "whoami") || {
+        echo "FAIL '${FUNCNAME[0]}': command exited non-zero"; return 1
+    }
+    if [[ "${output}" == "canonicalize-json" ]]; then
+        echo "PASS '${FUNCNAME[0]}': container user is 'canonicalize-json'"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected user 'canonicalize-json', got '${output}'"
+        return 1
+    fi
+}
+
+test_python3_exists() {
+    run_image "command -v python3" > /dev/null || {
+        echo "FAIL '${FUNCNAME[0]}': python3 not found"; return 1
+    }
+    echo "PASS '${FUNCNAME[0]}': python3 is installed"
+}
+
+test_jq_exists() {
+    run_image "command -v jq" > /dev/null || {
+        echo "FAIL '${FUNCNAME[0]}': jq not found"; return 1
+    }
+    echo "PASS '${FUNCNAME[0]}': jq is installed"
+}
+
+test_entrypoint_script_exists() {
+    run_image "test -x /usr/local/bin/canonicalize-json" || {
+        echo "FAIL '${FUNCNAME[0]}': entrypoint script not found or not executable"; return 1
+    }
+    echo "PASS '${FUNCNAME[0]}': /usr/local/bin/canonicalize-json exists and is executable"
+}
+
+test_app_script_exists() {
+    local app_dir
+    app_dir=$(run_image "printenv __1121CITRUS_APP_DIR") || {
+        echo "FAIL '${FUNCNAME[0]}': __1121CITRUS_APP_DIR not set"; return 1
+    }
+    run_image "test -f ${app_dir}/canonicalize_json.py" || {
+        echo "FAIL '${FUNCNAME[0]}': canonicalize_json.py not found in ${app_dir}"; return 1
+    }
+    echo "PASS '${FUNCNAME[0]}': canonicalize_json.py present in app dir"
+}
+
+test_no_login_shell() {
+    local output
+    output=$(run_image "grep canonicalize-json /etc/passwd | cut -d: -f7") || {
+        echo "FAIL '${FUNCNAME[0]}': command exited non-zero"; return 1
+    }
+    if [[ "${output}" == "/sbin/nologin" ]]; then
+        echo "PASS '${FUNCNAME[0]}': canonicalize-json user shell is /sbin/nologin"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected /sbin/nologin, got '${output}'"
+        return 1
+    fi
+}
+
+test_jcs_module_installed() {
+    run_image "python3 -c 'import jcs'" || {
+        echo "FAIL '${FUNCNAME[0]}': jcs Python module not installed"; return 1
+    }
+    echo "PASS '${FUNCNAME[0]}': jcs Python module is installed"
+}
+
+run_tests() {
+    local passed=0
+    local tests=(
+        test_runs_as_non_root
+        test_user_is_canonicalize_json
+        test_python3_exists
+        test_jq_exists
+        test_entrypoint_script_exists
+        test_app_script_exists
+        test_no_login_shell
+        test_jcs_module_installed
+    )
+
+    setup || { echo "ERROR: Setup failed"; return 1; }
+
+    echo "Running tests for image structure..."
+    echo "========================================================"
+
+    for test in "${tests[@]}"; do
+        "${test}" && ((passed++)) || :
+    done
+
+    local failed=$(( ${#tests[@]} - passed ))
+    echo "========================================================"
+    echo "Results: ${passed} passed, ${failed} failed"
+    return "${failed}"
+}
+
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && run_tests
