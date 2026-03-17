@@ -68,7 +68,14 @@ test_app_script_exists() {
     app_dir=$(run_image "printenv __1121CITRUS_APP_DIR") || {
         echo "FAIL '${FUNCNAME[0]}': __1121CITRUS_APP_DIR not set"; return 1
     }
-    run_image "test -f ${app_dir}/canonicalize_json.py" || {
+    # Validate that app_dir contains only safe path characters before
+    # interpolating it into a new shell command.  This prevents a compromised
+    # or unexpected env var value from injecting shell metacharacters.
+    if [[ ! "${app_dir}" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
+        echo "FAIL '${FUNCNAME[0]}': __1121CITRUS_APP_DIR contains unexpected characters: '${app_dir}'" >/dev/stderr
+        return 1
+    fi
+    run_image "test -f '${app_dir}/canonicalize_json.py'" || {
         echo "FAIL '${FUNCNAME[0]}': canonicalize_json.py not found in ${app_dir}"; return 1
     }
     echo "PASS '${FUNCNAME[0]}': canonicalize_json.py present in app dir"

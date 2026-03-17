@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 
+# canonicalize-json: test PRETTIFY / PRETTY_PRINT / INDENT modes.
+#
+# Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+set -euo pipefail
+
 TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
 
 setup() {
     return 0
 }
 
-# Shared test logic. Arguments: test_name, prettify_var (PRETTIFY or PRETTY_PRINT).
-# Generates expected output by running local jq against the known canonical form,
-# so the test covers any valid INDENT value (0-7) without hard-coded branches.
+# ── Shared test logic ─────────────────────────────────────────────────────────
+
+# Run the prettify test with a specific env var name (PRETTIFY or PRETTY_PRINT)
+# and an optional INDENT value.  The expected output is generated locally by
+# running jq against the known canonical form so the test covers any valid
+# INDENT value (0–7) without hard-coded per-indent branches.
 _run_prettify_test() {
     local test_name="${1}"
     local prettify_var="${2}"
@@ -35,6 +45,8 @@ _run_prettify_test() {
     fi
 }
 
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
 test_prettify_json_output() {
     _run_prettify_test "${FUNCNAME[0]}" PRETTIFY
 }
@@ -53,6 +65,43 @@ test_pretty_print_alias_indent_4() {
     _run_prettify_test "${FUNCNAME[0]}" PRETTY_PRINT
 }
 
+test_prettify_indent_0() {
+    # INDENT=0 removes all indentation; jq emits compact multi-line output
+    # with newlines but no leading whitespace.
+    local INDENT=0
+    _run_prettify_test "${FUNCNAME[0]}" PRETTIFY
+}
+
+test_prettify_indent_7() {
+    # INDENT=7 is jq's documented maximum; validate the boundary is accepted.
+    local INDENT=7
+    _run_prettify_test "${FUNCNAME[0]}" PRETTIFY
+}
+
+test_no_prettify_by_default() {
+    # When neither PRETTIFY nor PRETTY_PRINT is set, output must be compact
+    # (no newlines, no extra whitespace) regardless of the INDENT value.
+    local input expected output
+    input='{"b":1,"a":2}'
+    expected='{"a":2,"b":1}'
+
+    if ! output=$(echo -n "${input}" | docker run -i --rm \
+            -e DEBUG="${DEBUG:-false}" \
+            "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': default output is compact (no prettify)"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+# ── Runner ────────────────────────────────────────────────────────────────────
+
 run_tests() {
     local passed=0
     local tests=(
@@ -60,6 +109,9 @@ run_tests() {
         test_prettify_json_output_indent_4
         test_pretty_print_alias
         test_pretty_print_alias_indent_4
+        test_prettify_indent_0
+        test_prettify_indent_7
+        test_no_prettify_by_default
     )
 
     setup || { echo "ERROR: Setup failed"; return 1; }

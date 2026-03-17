@@ -4,12 +4,20 @@
 
 A containerized [JCS (RFC 8785)](https://datatracker.ietf.org/doc/html/rfc8785) compliant JSON formatter, utilizing the [Python JCS](https://pypi.org/project/jcs) library.
 
+**What is JCS / RFC 8785?**  JSON Canonicalization Scheme (JCS) produces a
+deterministic, byte-for-byte identical serialization of any JSON value: object
+keys are sorted by Unicode code-point order recursively, and all unnecessary
+whitespace is removed.  The resulting byte sequence is suitable for hashing,
+digital signing, content-addressable storage, and reproducible diffs of JSON
+stored in version control.
+
 The main author of the [Python JCS](https://pypi.org/project/jcs) library is
-[Anders Rundgren](https://github.com/cyberphone). The original source code is at [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3) including comprehensive test data.
+[Anders Rundgren](https://github.com/cyberphone). The original source code is at
+[cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization/tree/master/python3)
+including comprehensive test data.
 
 ## Contents
 
-- [Contents](#contents)
 - [Prerequisites](#prerequisites)
 - [Usage](#usage)
 - [Configuration](#configuration)
@@ -17,6 +25,7 @@ The main author of the [Python JCS](https://pypi.org/project/jcs) library is
 - [Building](#building)
 - [Testing](#testing)
 - [CI/CD](#cicd)
+- [Attributions and provenance](#attributions-and-provenance)
 
 ## Prerequisites
 
@@ -26,7 +35,8 @@ The main author of the [Python JCS](https://pypi.org/project/jcs) library is
 
 ## Usage
 
-`PRETTIFY` mode requires `jq` to be installed locally when running the helper script directly; the published container already includes it.
+`PRETTIFY` mode requires `jq` to be installed locally when running the helper
+script directly outside Docker; the published container already includes it.
 
 ### Ordinary canonicalization
 
@@ -74,12 +84,12 @@ AFTER: }
 
 ## Configuration
 
-| Variable       | Default | Notes                                                                                     |
-| -------------- | :-----: | ----------------------------------------------------------------------------------------- |
-| `DEBUG`        | `false` | If `true` then the shell script will enable options `xtrace` and `verbose`                  |
-| `PRETTIFY`     | `false` | If `true` then the usual whitespace is inserted into the canonical JSON to make it pretty. |
-| `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`.                                                                     |
-| `INDENT`       |   `2`   | When prettifying, pass this indent value to `jq --indent`. Valid range: `0`–`7`.            |
+| Variable | Default | Notes |
+| --- | :---: | --- |
+| `DEBUG` | `false` | If `true`, enables shell `xtrace` and `verbose` options inside the entrypoint script. |
+| `PRETTIFY` | `false` | If `true`, re-formats the canonical JSON with `jq` for human readability. |
+| `PRETTY_PRINT` | `false` | Synonym for `PRETTIFY`. |
+| `INDENT` | `2` | Indentation width for `jq --indent` when prettifying. Valid range: `0`–`7`. Values outside this range cause `jq` to exit non-zero. |
 
 ## Security considerations
 
@@ -89,11 +99,25 @@ AFTER: }
   (`canonicalize-json`, UID 10001).
 - **No network access needed:** The container does not make network
   calls at runtime. Add `--network=none` for full isolation:
+
   ```bash
   echo '{"b":1,"a":2}' | docker run -i --rm --network=none 1121citrus/canonicalize-json:latest
   ```
-- **Read-only rootfs:** For hardened deployments, run with
-  `--read-only --tmpdir /tmp`.
+
+- **Read-only root filesystem:** For hardened deployments, run with
+  `--read-only --tmpfs /tmp`.  The container writes nothing to disk at runtime,
+  so a read-only rootfs is fully compatible:
+
+  ```bash
+  echo '{"b":1,"a":2}' | docker run -i --rm --read-only --tmpfs /tmp 1121citrus/canonicalize-json:latest
+  ```
+- **Supply-chain integrity:** Python dependencies in `requirements.txt` are
+  hash-pinned (`--require-hashes`).  The base image is pinned to a specific
+  Python *and* Alpine minor version (e.g. `python:3.13.7-alpine3.21`) so the
+  OS package set is reproducible across builds.
+- **SBOM and provenance:** Published images carry an SPDX Software Bill of
+  Materials and a SLSA Build Provenance Level 3 attestation, both stored as
+  OCI referrers alongside the image manifest.
 
 ## Building
 
@@ -114,12 +138,16 @@ VERSION=x.y.z PUSH=true ./build
 The build script will:
 
 1. Lint the Dockerfile with [hadolint](https://github.com/hadolint/hadolint)
-2. Build the image locally and tag as `1121citrus/canonicalize-json:VERSION`
-   and `canonicalize-json`
-3. Scan with [Trivy](https://github.com/aquasecurity/trivy) and
-   [Docker Scout](https://docs.docker.com/scout/) (if available) for
-   vulnerabilities
-4. Optionally push a multi-platform image to Docker Hub when `PUSH=true`
+2. Build the image locally and tag it as `1121citrus/canonicalize-json:VERSION`
+   and `canonicalize-json`.  The `:latest` tag is **not** applied when
+   `VERSION=dev` (the default) to avoid overwriting a production tag in the
+   local Docker daemon.
+3. Scan with [Trivy](https://github.com/aquasecurity/trivy) — exits non-zero if
+   any fixable HIGH or CRITICAL CVEs are found.
+4. Scan with [Docker Scout](https://docs.docker.com/scout/) if the plugin is
+   installed (non-fatal if absent).
+5. Optionally push a multi-platform image to Docker Hub when `PUSH=true`,
+   including SBOM and provenance attestations.
 
 ## Testing
 
@@ -134,23 +162,23 @@ Individual test files can also be run directly:
 
 | Test file | What it validates |
 | --- | --- |
-| `test/bin/canonicalize` | Key sorting, primitive/array handling, invalid JSON rejection |
-| `test/bin/prettify` | `PRETTIFY`/`PRETTY_PRINT` env vars, custom indent values |
+| `test/bin/canonicalize` | Key sorting, primitives, arrays, scalars, deep nesting, Unicode key order, invalid/empty input rejection |
+| `test/bin/prettify` | `PRETTIFY`/`PRETTY_PRINT` env vars, `INDENT` values 0–7, default compact output |
 | `test/bin/image-structure` | Non-root user, installed binaries (`python3`, `jq`), nologin shell, `jcs` module |
 | `test/bin/env-metadata` | Build-time `APP_*` env vars and OCI labels |
 
 ## CI/CD
 
-GitHub Actions runs on every push to `main`/`master`/`staging` and on
-pull requests. The pipeline is defined in `.github/workflows/ci.yml`.
+GitHub Actions runs on every push to `main`/`master`/`staging` and on pull
+requests.  The pipeline is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 | Stage | What it does |
 | --- | --- |
-| **lint** | hadolint on Dockerfile, shellcheck on all shell scripts and tests |
-| **build** | Builds the Docker image and uploads it as an artifact |
+| **lint** | hadolint on Dockerfile; shellcheck on all shell scripts and tests |
+| **build** | Builds the Docker image and uploads it as a workflow artifact |
 | **test** | Downloads the artifact and runs `test/run-all-tests` |
-| **scan** | Trivy vulnerability scan at all severity levels |
-| **push** | Multi-platform build + push to Docker Hub (tags, `main`/`master`, and `staging` only) |
+| **scan** | Trivy vulnerability scan — fails on fixable HIGH/CRITICAL CVEs |
+| **push** | Multi-platform build + push to Docker Hub (version tags, `main`/`master`, and `staging` only) |
 
 ### Required repository secrets
 
@@ -161,6 +189,32 @@ pull requests. The pipeline is defined in `.github/workflows/ci.yml`.
 
 ### Tagging strategy
 
-- Pushes to `main`/`master`: tagged as `edge`
-- Pushes to `staging`: tagged as `staging-YYYY.MM.DD.HHMMSS` and `staging`
-- Version tags (`v1.2.3`): tagged as `1.2.3` and `latest`
+| Trigger | Image tag(s) |
+| --- | --- |
+| Push to `main` / `master` | `:edge` |
+| Push to `staging` | `:staging-YYYY.MM.DD.HHMMSS`, `:staging` |
+| Version tag `v1.2.3` | `:1.2.3`, `:latest` |
+
+## Attributions and provenance
+
+| Component | Author / Source | License |
+| --- | --- | --- |
+| `canonicalize-json` (this project) | [Jim Hanlon](https://github.com/1121citrus) | AGPL-3.0-or-later |
+| [jcs](https://pypi.org/project/jcs) Python library | [Anders Rundgren](https://github.com/cyberphone) / [cyberphone/json-canonicalization](https://github.com/cyberphone/json-canonicalization) | Apache-2.0 |
+| [RFC 8785](https://datatracker.ietf.org/doc/html/rfc8785) specification | IETF | — |
+| [Python](https://python.org) runtime | Python Software Foundation | PSF |
+| [jq](https://jqlang.github.io/jq/) | Stephen Dolan et al. | MIT |
+| [Alpine Linux](https://alpinelinux.org) base image | Alpine Linux Team | Various (GPL-compatible) |
+
+Build provenance and an SPDX SBOM are attached to every published image as OCI
+referrers.  To inspect them:
+
+```bash
+# View the SBOM
+docker buildx imagetools inspect 1121citrus/canonicalize-json:latest \
+    --format '{{ json .SBOM.SPDX }}'
+
+# View the provenance attestation
+docker buildx imagetools inspect 1121citrus/canonicalize-json:latest \
+    --format '{{ json .Provenance.SLSA }}'
+```

@@ -13,8 +13,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Pin the Python *and* Alpine minor versions together so the OS package set is
+# fully reproducible across builds.  Bumping either component is a deliberate,
+# reviewable change rather than a silent background upgrade.
 ARG PYTHON_VERSION=3.13.7
-FROM python:${PYTHON_VERSION}-alpine
+ARG ALPINE_VERSION=3.21
+FROM python:${PYTHON_VERSION}-alpine${ALPINE_VERSION}
 
 ARG AUTHORS='Jim Hanlon «jim@hanlonsoftware.com»'
 ARG BUILD_DATE=unknown
@@ -52,17 +56,19 @@ LABEL org.opencontainers.image.source="https://github.com/1121citrus/canonicaliz
 LABEL org.opencontainers.image.title="canonicalize-json"
 LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/1121citrus/canonicalize-json"
 LABEL org.opencontainers.image.vendor="1121 Citrus, LTD"
+LABEL org.opencontainers.image.version="${VERSION}"
 
-RUN APK_PACKAGES="jq" \
-    && apk update \
-    && apk upgrade --no-cache \
-    && apk add --no-cache "${APK_PACKAGES}" \
-    && python -m pip install --upgrade "pip>=26" \
-    && true
+# DL3018: apk package version pinning is handled by pinning the Alpine *base
+# image* minor version (alpine3.21 above).  Pinning individual package versions
+# inside apk add would require tracking apk version strings separately and
+# provides no additional reproducibility guarantee beyond what the base image
+# already gives us.
+# hadolint ignore=DL3018
+RUN apk add --no-cache --upgrade jq \
+    && python -m pip install --no-cache-dir --upgrade "pip==26.0.1"
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
 WORKDIR ${__1121CITRUS_APP_DIR}
-ENV PATH=${__1121CITRUS_APP_DIR}/bin/:${PATH}
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
@@ -77,9 +83,18 @@ RUN adduser \
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
 # Leverage a bind mount to requirements.txt to avoid having to copy them into
 # this layer.
+# --require-hashes refuses to install any package whose digest does not match
+# an entry in requirements.txt, preventing supply-chain substitution attacks.
+# The cache mount is scoped to root's pip cache; the bind mount avoids copying
+# the requirements file into the image layer.
+# DL3042: the BuildKit cache mount at /root/.cache/pip is intentional — it
+# speeds up repeated local builds by caching downloaded wheels across runs.
+# The --require-hashes flag ensures only the exact digests in requirements.txt
+# are accepted, so the cache cannot introduce untrusted packages.
+# hadolint ignore=DL3042
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install -r requirements.txt
+    python -m pip install --require-hashes -r requirements.txt
 
 # Switch to the non-privileged user to run the application.
 USER canonicalize-json

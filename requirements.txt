@@ -1,4 +1,14 @@
 # Installation requirements.
+#
+# Hash pinning via `pip install --require-hashes` (enforced in Dockerfile) guards
+# against supply-chain substitution: a compromised PyPI mirror or a future
+# version-collision attack cannot silently serve different content when the
+# exact SHA-256 digests are required.
+#
+# To regenerate hashes after a version bump:
+#   pip download --no-deps jcs==<new-version>
+#   pip hash jcs-<new-version>*.whl jcs-<new-version>.tar.gz
 
-jcs == 0.2.1
-
+jcs==0.2.1 \
+    --hash=sha256:c0d49a99bc15266a842bd14a1913afdb05182888ebab035666c1ce8a64537ca2 \
+    --hash=sha256:47e59d547f0d42ba00f68eec773aa7b2145e0c0335eb632cbaf519f480a429af

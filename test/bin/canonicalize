@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
 
+# canonicalize-json: test canonicalization correctness.
+#
+# Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+set -euo pipefail
+
 TARGET_IMAGE="1121citrus/canonicalize-json:${TAG:-latest}"
 
 setup() {
     return 0
 }
 
+# ── Helper ────────────────────────────────────────────────────────────────────
+
+# Run the container with the given JSON string on stdin and return its stdout.
+# Exits non-zero on docker failure.
+_run() {
+    echo -n "${1}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}"
+}
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
 test_canonicalize_json_sorted_output() {
     local input expected output
     input=${TESTDATA:-'{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41", "dec":"65","oct":"101"}}'}
     expected=${EXPECTED:-'{"1":{"dec":"49","hex":"31","oct":"61"},"A":{"dec":"65","hex":"41","oct":"101"},"z":{"dec":"122","hex":"7A","oct":"172"}}'}
 
-    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}"); then
+    if ! output=$(_run "${input}"); then
         echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
         return 1
     fi
@@ -29,7 +46,7 @@ test_canonicalize_primitives_and_array() {
     input='{"b":true,"a":null,"c":[3,2,1],"d":"text"}'
     expected='{"a":null,"b":true,"c":[3,2,1],"d":"text"}'
 
-    if ! output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}"); then
+    if ! output=$(_run "${input}"); then
         echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
         return 1
     fi
@@ -46,6 +63,7 @@ test_canonicalize_invalid_json() {
     local input output status
     input='{"a":}'
 
+    # Capture both stdout and stderr so we can inspect the error message.
     output=$(echo -n "${input}" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}" 2>&1)
     status=$?
 
@@ -57,12 +75,153 @@ test_canonicalize_invalid_json() {
     fi
 }
 
+test_canonicalize_empty_object() {
+    # RFC 8785 §3.2: an empty object canonicalizes to '{}'.
+    local input expected output
+    input='{}'
+    expected='{}'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': empty object canonicalizes correctly"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_empty_array() {
+    # RFC 8785 §3.2: an empty array canonicalizes to '[]'.
+    local input expected output
+    input='[]'
+    expected='[]'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': empty array canonicalizes correctly"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_top_level_scalar() {
+    # RFC 8785 is defined for any JSON value, not just objects.
+    # A bare string at the top level must round-trip unchanged.
+    local input expected output
+    input='"hello"'
+    expected='"hello"'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': top-level string scalar round-trips correctly"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_top_level_number() {
+    local input expected output
+    input='42'
+    expected='42'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': top-level number scalar round-trips correctly"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_deeply_nested() {
+    # Canonicalization must be applied recursively through all nesting levels.
+    local input expected output
+    input='{"z":{"y":{"b":2,"a":1},"x":0}}'
+    expected='{"z":{"x":0,"y":{"a":1,"b":2}}}'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': deeply nested keys are sorted recursively"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_unicode_key_order() {
+    # RFC 8785 §3.2.3: object keys are sorted by their Unicode code-point
+    # sequences (not locale-dependent collation).  The key "\u00e9" (é, U+00E9)
+    # sorts after all ASCII keys because its first code point (0x00E9 = 233)
+    # is greater than any printable ASCII character (max 0x7E = 126).
+    local input expected output
+    input='{"z":"last","é":"accented","a":"first"}'
+    expected='{"a":"first","z":"last","é":"accented"}'
+
+    if ! output=$(_run "${input}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': Unicode keys sorted by code-point order"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+test_canonicalize_empty_input_rejected() {
+    # An empty stdin is not valid JSON; the container must exit non-zero and
+    # write a diagnostic to stderr.
+    local output status
+    output=$(echo -n "" | docker run -i --rm -e DEBUG="${DEBUG:-false}" "${TARGET_IMAGE}" 2>&1)
+    status=$?
+
+    if [[ ${status} -ne 0 ]]; then
+        echo "PASS '${FUNCNAME[0]}': empty input rejected (exit ${status})"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected non-zero exit for empty input, got 0. Output: '${output}'" >/dev/stderr
+        return 1
+    fi
+}
+
+# ── Runner ────────────────────────────────────────────────────────────────────
+
 run_tests() {
     local passed=0
     local tests=(
         test_canonicalize_json_sorted_output
         test_canonicalize_primitives_and_array
         test_canonicalize_invalid_json
+        test_canonicalize_empty_object
+        test_canonicalize_empty_array
+        test_canonicalize_top_level_scalar
+        test_canonicalize_top_level_number
+        test_canonicalize_deeply_nested
+        test_canonicalize_unicode_key_order
+        test_canonicalize_empty_input_rejected
     )
 
     setup || { echo "ERROR: Setup failed"; return 1; }
