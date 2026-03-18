@@ -1,163 +1,287 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-#
-# build — build, scan, and optionally push the canonicalize-json Docker image.
+
+# build — local CI equivalent for canonicalize-json.
 #
 # Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# ──────────────────────────────────────────────────────────────────────────────
-# USAGE
-#   VERSION=x.y.z ./build            # local build only
-#   VERSION=x.y.z PUSH=true ./build  # build + push to Docker Hub
+# SYNOPSIS
+#   build [--push] [--version VERSION] [--platform PLATFORMS]
+#         [--registry REGISTRY] [--no-sbom] [--no-provenance]
+#         [--no-lint] [--no-test] [--no-scan]
+#         [--dry-run] [--help]
+#
+# OPTIONS
+#   --push              Push the image to the registry after a successful build.
+#                       Omitting this flag builds locally only (the default).
+#   --version VERSION   Tag the image with this version string, e.g. "1.2.3".
+#                       When omitted the image is tagged "dev-<git-short-sha>"
+#                       so that local builds are never confused with released
+#                       artifacts.
+#   --platform PLATFORMS
+#                       Comma-separated list of target platforms for --push.
+#                       Default: linux/amd64,linux/arm64
+#   --registry REGISTRY Docker Hub username / registry prefix.
+#                       Default: 1121citrus
+#   --no-sbom           Skip generating an SBOM attestation (push only).
+#   --no-provenance     Skip generating a provenance attestation (push only).
+#   --no-lint           Skip hadolint Dockerfile check and shellcheck.
+#   --no-test           Skip running the test suite.
+#   --no-scan           Skip the Trivy vulnerability scan.
+#   --dry-run           Print each command without executing it.
+#   --help              Print this message and exit.
 #
 # ENVIRONMENT
-#   VERSION   Semver string to embed and tag (default: "dev").
-#             A "dev" value deliberately suppresses the ":latest" tag so that
-#             development builds do not overwrite a production tag in the local
-#             daemon.
-#   PUSH      Set to "true" to trigger a multi-platform build and push to
-#             Docker Hub.  Requires `docker login` (or DOCKERHUB_USERNAME /
-#             DOCKERHUB_TOKEN env vars) and a builder that supports
-#             linux/amd64 + linux/arm64 cross-compilation (e.g. QEMU via
-#             `docker buildx create --use`).
-# ──────────────────────────────────────────────────────────────────────────────
+#   The following env-var overrides take precedence over the defaults above but
+#   are themselves overridden by the matching CLI flag:
+#     BUILD_VERSION, BUILD_PUSH, BUILD_PLATFORM, BUILD_REGISTRY
+#     BUILD_LINT, BUILD_TEST, BUILD_SCAN
+#
+# PREREQUISITES
+#   • docker with the buildx plugin (≥ 0.10)
+#   • shellcheck on PATH (for lint stage)
+#   • For --push: docker login <registry> must already be authenticated, plus
+#     QEMU binfmt helpers for cross-platform builds:
+#       docker run --rm --privileged tonistiigi/binfmt --install all
+#
+# STAGES (run in order; each can be skipped with --no-<stage>)
+#   1. Lint   — hadolint (Dockerfile) + shellcheck (src/, test/)
+#   2. Build  — single-platform --load into local Docker daemon
+#   3. Test   — test/run-all-tests against the locally loaded image
+#   4. Scan   — Trivy CRITICAL/HIGH image scan (blocking)
+#   5. Push   — multi-platform rebuild + push to registry (only with --push)
+#
+# EXAMPLES
+#   # Local dev cycle — lint, build, test, scan
+#   ./build
+#
+#   # Release build — push version 1.2.3 and latest
+#   ./build --push --version 1.2.3
+#
+#   # Skip tests during a quick lint + build iteration
+#   ./build --no-test --no-scan
+#
+#   # Dry-run: just print each command
+#   ./build --dry-run
+#
+##ENDOFHELP
 
-# Abort on any error, treat unset variables as errors, and propagate pipeline
-# failures so `cmd1 | cmd2` fails if cmd1 fails (not just cmd2).
 set -Eeuo pipefail
 
-# Always run from the directory that contains this script so that relative
-# paths like "Dockerfile" and "requirements.txt" resolve correctly regardless
-# of the caller's working directory.
-cd "$(dirname "$0")" || exit 1
+# ---------------------------------------------------------------------------
+# Defaults — may be overridden by environment variables or CLI flags.
+# ---------------------------------------------------------------------------
+PUSH=${BUILD_PUSH:-false}
+VERSION=${BUILD_VERSION:-}
+PLATFORMS=${BUILD_PLATFORM:-linux/amd64,linux/arm64}
+REGISTRY=${BUILD_REGISTRY:-1121citrus}
+SBOM=true
+PROVENANCE=true
+LINT=${BUILD_LINT:-true}
+TEST=${BUILD_TEST:-true}
+SCAN=${BUILD_SCAN:-true}
+DRY_RUN=false
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+IMAGE_NAME=canonicalize-json
 
-# Docker Hub repository name (without tag).
-readonly IMAGE="1121citrus/canonicalize-json"
+# Tool image references — update these to pin analyser versions project-wide.
+HADOLINT_IMAGE=hadolint/hadolint
+HADOLINT_TAG=v2.12.0
+SHELLCHECK_IMAGE=koalaman/shellcheck
+SHELLCHECK_TAG=v0.10.0
+TRIVY_IMAGE=aquasec/trivy
+TRIVY_TAG=0.62.1
 
-# Short local tag used when running tests on the built image.  This avoids
-# relying on IMAGE:latest which may point to a pulled production image.
-readonly LOCAL_TAG="canonicalize-json"
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --push)             PUSH=true ;;
+        --version)          VERSION="$2"; shift ;;
+        --platform)         PLATFORMS="$2"; shift ;;
+        --registry)         REGISTRY="$2"; shift ;;
+        --no-sbom)          SBOM=false ;;
+        --no-provenance)    PROVENANCE=false ;;
+        --no-lint)          LINT=false ;;
+        --no-test)          TEST=false ;;
+        --no-scan)          SCAN=false ;;
+        --dry-run)          DRY_RUN=true ;;
+        --help|-h)
+            sed -n '3,/^##ENDOFHELP/p' "$0" | grep '^#' | head -n -1 | sed 's/^# \{0,1\}//'
+            exit 0 ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1 ;;
+    esac
+    shift
+done
 
-# Version defaults to "dev" for local iteration.  Override via environment
-# before calling this script:  VERSION=1.2.3 ./build
-VERSION="${VERSION:-dev}"
-
-# Short git commit hash for provenance labelling.  Falls back to "unknown"
-# when run outside a git repository (e.g. in a CI artifact download context).
-GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-
-# ISO-8601 compact UTC timestamp for the OCI image.created label.
-BUILD_DATE="$(date -u +%Y%m%dT%H%M%S)"
-
-# Set PUSH=true to build a multi-platform image and push to Docker Hub.
-PUSH="${PUSH:-false}"
-
-# ── Derived tag set ───────────────────────────────────────────────────────────
-
-# Build a tag array.  The version-specific tag is always included.
-# The ":latest" tag is only applied for non-dev builds so that iterating with
-# VERSION=dev (the default) does not silently shadow a production ":latest" in
-# the local Docker daemon.
-TAGS=(
-    "--tag" "${IMAGE}:${VERSION}"
-    "--tag" "${LOCAL_TAG}"
-)
-if [[ "${VERSION}" != "dev" ]]; then
-    TAGS+=("--tag" "${IMAGE}:latest")
+# ---------------------------------------------------------------------------
+# Resolve the image version tag.
+# ---------------------------------------------------------------------------
+if [[ -z "${VERSION}" ]]; then
+    sha=$(git -C "$(dirname "$0")" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    VERSION="dev-${sha}"
 fi
 
-# ── Common build args ─────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Build metadata embedded in the image via build-args.
+# ---------------------------------------------------------------------------
+GIT_COMMIT=$(git -C "$(dirname "$0")" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u +%Y%m%dT%H%M%S)
 
-# These build args populate OCI labels, APP_* env vars, and __version__ inside
-# the container.  Passing them consistently keeps local and CI builds aligned.
-BUILD_ARGS=(
+# ---------------------------------------------------------------------------
+# Construct the tag list.
+# "latest" is only added for non-dev (release) builds that will be pushed.
+# ---------------------------------------------------------------------------
+full_image="${REGISTRY}/${IMAGE_NAME}"
+tags=("--tag" "${full_image}:${VERSION}")
+if [[ "${PUSH}" == "true" && "${VERSION}" != dev-* ]]; then
+    tags+=("--tag" "${full_image}:latest")
+fi
+
+# Common build-args passed to every docker buildx build invocation.
+build_args=(
     "--build-arg" "VERSION=${VERSION}"
     "--build-arg" "GIT_COMMIT=${GIT_COMMIT}"
     "--build-arg" "BUILD_DATE=${BUILD_DATE}"
 )
 
-# ── Step 1: Lint ──────────────────────────────────────────────────────────────
-# Run hadolint inside its own container so the tool does not need to be
-# installed on the host.  The Dockerfile is fed via stdin to avoid bind-mounting
-# the working directory (principle of least privilege for the lint container).
+# ---------------------------------------------------------------------------
+# Helper: execute a command or print it for --dry-run.
+# ---------------------------------------------------------------------------
+run() {
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo "[DRY RUN]" "$@" >&2
+    else
+        "$@"
+    fi
+}
 
-echo "[INFO] build start ${IMAGE}:${VERSION}  commit:${GIT_COMMIT}  date:${BUILD_DATE}"
-echo "[INFO] linting Dockerfile"
-docker run --rm -i hadolint/hadolint < Dockerfile
+# Script directory for build context and relative paths.
+script_dir=$(dirname "$(readlink -f "$0")")
 
-# ── Step 2: Build ─────────────────────────────────────────────────────────────
-# `--load` imports the built image into the local Docker daemon so that the
-# Trivy scan and test suite can reference it by name without a registry push.
-# BuildKit is implied by `docker buildx build`; it is required for the
-# --mount=type=cache and --mount=type=bind directives in the Dockerfile.
+echo "Image:     ${full_image}:${VERSION}" >&2
+echo "Platforms: ${PLATFORMS}" >&2
+echo "Push:      ${PUSH}" >&2
+echo "" >&2
 
-echo "[INFO] building ${IMAGE}:${VERSION}"
-docker buildx build \
-    "${BUILD_ARGS[@]}" \
-    "${TAGS[@]}" \
-    --load \
-    .
+# ---------------------------------------------------------------------------
+# Stage 1: Lint
+# ---------------------------------------------------------------------------
+if [[ "${LINT}" == "true" ]]; then
+    echo "==> Stage 1: Lint" >&2
 
-# ── Step 3: Vulnerability scan (Trivy) ───────────────────────────────────────
-# Trivy needs access to the local Docker daemon to pull the image layers, so
-# the Docker socket is bind-mounted read-only into the Trivy container.
-# WARNING: mounting /var/run/docker.sock grants the container root-equivalent
-# access to the host Docker daemon.  This is the standard local-scan pattern
-# and is acceptable for trusted tooling, but should not be done in multi-tenant
-# environments.  In CI, the aquasecurity/trivy-action runs natively without
-# a socket mount and should be preferred.
+    echo "    hadolint Dockerfile" >&2
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo "[DRY RUN] docker run --rm -i hadolint/hadolint < Dockerfile" >&2
+    else
+        docker run --rm -i "${HADOLINT_IMAGE}:${HADOLINT_TAG}" < "${script_dir}/Dockerfile"
+    fi
 
-echo "[INFO] scanning ${IMAGE}:${VERSION} with Trivy"
-docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock:ro \
-    aquasec/trivy:latest image \
-        --quiet \
-        --exit-code 1 \
-        --ignore-unfixed \
-        --severity HIGH,CRITICAL,MEDIUM,LOW \
-        "${IMAGE}:${VERSION}"
+    echo "    shellcheck src/ test/" >&2
+    (cd "${script_dir}" && run docker run --rm \
+        -v "${script_dir}:/mnt" \
+        "${SHELLCHECK_IMAGE}:${SHELLCHECK_TAG}" \
+        -x \
+        src/canonicalize-json \
+        build \
+        test/run-all-tests \
+        test/bin/*)
+fi
 
-# ── Step 4: Vulnerability scan (Docker Scout, optional) ──────────────────────
-# Docker Scout provides complementary CVE data from a different advisory
-# database.  It is only invoked when the `docker scout` plugin is installed;
-# missing Scout is non-fatal so the build script can be used on hosts where
-# Scout has not been configured.
+# ---------------------------------------------------------------------------
+# Stage 2: Build (local, single-platform)
+# ---------------------------------------------------------------------------
+echo "==> Stage 2: Build ${full_image}:${VERSION}" >&2
 
-if command -v docker-scout >/dev/null 2>&1 || docker scout version >/dev/null 2>&1; then
-    echo "[INFO] scanning ${IMAGE}:${VERSION} with Docker Scout"
-    docker scout cves \
-        --only-severity critical,high,medium,low \
-        "${IMAGE}:${VERSION}"
+host_platform=$(docker info --format '{{.OSType}}/{{.Architecture}}' 2>/dev/null \
+    || echo "linux/amd64")
+
+build_cmd=(
+    docker buildx build
+    --platform "${host_platform}"
+    "${tags[@]}"
+    "${build_args[@]}"
+    --load
+)
+
+if [[ -n "${BUILD_EXTRA_ARGS:-}" ]]; then
+    # shellcheck disable=SC2206
+    build_cmd+=(${BUILD_EXTRA_ARGS})
+fi
+
+build_cmd+=("${script_dir}")
+
+if [[ "${DRY_RUN}" == "true" ]]; then
+    echo "[DRY RUN] Would execute:" >&2
+    printf '  %s \\\n' "${build_cmd[@]}"
 else
-    echo "[WARN] docker scout not available — skipping Scout scan"
+    "${build_cmd[@]}"
 fi
 
-# ── Step 5: Push (optional) ───────────────────────────────────────────────────
-# Only executed when PUSH=true.  Performs a fresh multi-platform build (because
-# `--load` in Step 2 is single-platform only) and pushes to Docker Hub with
-# SBOM and provenance attestations attached.
-#
-# linux/amd64  — x86-64 hosts (servers, most CI runners)
-# linux/arm64  — Apple Silicon, Graviton, Raspberry Pi 4+
-#
-# --sbom=true             generates an SPDX SBOM and attaches it to the
-#                         manifest as an OCI referrer.
-# --provenance=mode=max   attaches a SLSA Build Provenance Level 3 attestation
-#                         containing the full build graph.
+# ---------------------------------------------------------------------------
+# Stage 3: Test
+# ---------------------------------------------------------------------------
+if [[ "${TEST}" == "true" ]]; then
+    echo "==> Stage 3: Test" >&2
+    # TAG tells run-all-tests which image tag to use (matches the one we built).
+    (cd "${script_dir}" && run env TAG="${VERSION}" bash test/run-all-tests)
+fi
 
+# ---------------------------------------------------------------------------
+# Stage 4: Scan (Trivy)
+# ---------------------------------------------------------------------------
+if [[ "${SCAN}" == "true" ]]; then
+    echo "==> Stage 4: Scan ${full_image}:${VERSION}" >&2
+    run docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock:ro \
+        "${TRIVY_IMAGE}:${TRIVY_TAG}" image \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL,MEDIUM,LOW \
+            "${full_image}:${VERSION}"
+fi
+
+# ---------------------------------------------------------------------------
+# Stage 5: Push (multi-platform)
+# Only runs when --push is specified; rebuilds for all target platforms.
+# ---------------------------------------------------------------------------
 if [[ "${PUSH}" == "true" ]]; then
-    echo "[INFO] pushing ${IMAGE}:${VERSION} (multi-platform: linux/amd64, linux/arm64)"
-    docker buildx build \
-        --sbom=true \
-        --provenance=mode=max \
-        --platform linux/amd64,linux/arm64 \
-        "${BUILD_ARGS[@]}" \
-        "${TAGS[@]}" \
-        --push \
-        .
+    echo "==> Stage 5: Push ${full_image}:${VERSION} (${PLATFORMS})" >&2
+
+    if [[ "${PROVENANCE}" == "true" ]]; then
+        provenance_flag="--provenance=mode=max"
+    else
+        provenance_flag="--provenance=false"
+    fi
+
+    push_cmd=(
+        docker buildx build
+        --platform "${PLATFORMS}"
+        "${tags[@]}"
+        "${build_args[@]}"
+        "--sbom=${SBOM}"
+        "${provenance_flag}"
+        --push
+    )
+
+    if [[ -n "${BUILD_EXTRA_ARGS:-}" ]]; then
+        # shellcheck disable=SC2206
+        push_cmd+=(${BUILD_EXTRA_ARGS})
+    fi
+
+    push_cmd+=("${script_dir}")
+
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo "[DRY RUN] Would execute:" >&2
+        printf '  %s \\\n' "${push_cmd[@]}"
+    else
+        "${push_cmd[@]}"
+    fi
 fi
 
-echo "[INFO] build complete ${IMAGE}:${VERSION}"
+echo "" >&2
+echo "Done: ${full_image}:${VERSION}" >&2
