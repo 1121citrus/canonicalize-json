@@ -66,10 +66,30 @@ test_pretty_print_alias_indent_4() {
 }
 
 test_prettify_indent_0() {
-    # INDENT=0 removes all indentation; jq emits compact multi-line output
-    # with newlines but no leading whitespace.
-    local INDENT=0
-    _run_prettify_test "${FUNCNAME[0]}" PRETTIFY
+    # jq 1.7.x treats --indent 0 as compact (no newlines), so PRETTIFY=true
+    # INDENT=0 produces the same output as PRETTIFY=false.  This test does not
+    # use _run_prettify_test because that helper generates expected output via
+    # the host jq, which may interpret --indent 0 differently across versions.
+    # Instead we assert the known container behaviour directly.
+    local input expected output
+    input='{"z":{"dec":"122","hex":"7A","oct":"172"},"1":{"hex":"31","oct":"61","dec":"49"},"A":{"hex":"41","dec":"65","oct":"101"}}'
+    expected='{"1":{"dec":"49","hex":"31","oct":"61"},"A":{"dec":"65","hex":"41","oct":"101"},"z":{"dec":"122","hex":"7A","oct":"172"}}'
+
+    if ! output=$(echo -n "${input}" | docker run -i --rm \
+            -e DEBUG="${DEBUG:-false}" \
+            -e PRETTIFY=true \
+            -e INDENT=0 \
+            "${TARGET_IMAGE}"); then
+        echo "FAIL '${FUNCNAME[0]}': docker invocation failed" >/dev/stderr
+        return 1
+    fi
+
+    if [[ "${output}" == "${expected}" ]]; then
+        echo "PASS '${FUNCNAME[0]}': INDENT=0 produces compact output (jq 1.7.x behaviour)"
+    else
+        echo "FAIL '${FUNCNAME[0]}': expected compact '${expected}' but got '${output}'" >/dev/stderr
+        return 1
+    fi
 }
 
 test_prettify_indent_7() {

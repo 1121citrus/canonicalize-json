@@ -58,13 +58,19 @@ LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/112
 LABEL org.opencontainers.image.vendor="1121 Citrus, LTD"
 LABEL org.opencontainers.image.version="${VERSION}"
 
+# Apply all available security patches from the Alpine repository before
+# adding application packages.  The base image pins the Alpine *minor* version
+# (alpine3.21) for reproducibility; apk upgrade pulls in patch-level OS fixes
+# (e.g. openssl, busybox, sqlite-libs) without changing that contract.
+#
 # DL3018: apk package version pinning is handled by pinning the Alpine *base
 # image* minor version (alpine3.21 above).  Pinning individual package versions
 # inside apk add would require tracking apk version strings separately and
 # provides no additional reproducibility guarantee beyond what the base image
 # already gives us.
-# hadolint ignore=DL3018
-RUN apk add --no-cache --upgrade jq \
+# hadolint ignore=DL3018,DL3017
+RUN apk upgrade --no-cache \
+    && apk add --no-cache jq \
     && python -m pip install --no-cache-dir --upgrade "pip==26.0.1"
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 

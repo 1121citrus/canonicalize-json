@@ -9,6 +9,10 @@ set -euo pipefail
 
 whereami=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
+# Default to the tag produced by a local `./build` run (VERSION=dev).
+# CI overrides this by setting TAG before invoking this script.
+export TAG="${TAG:-dev}"
+
 status=0
 while read -r testfile; do
     echo "Running test: ${testfile}"
