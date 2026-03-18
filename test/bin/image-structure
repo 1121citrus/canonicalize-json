@@ -120,7 +120,7 @@ run_tests() {
     echo "========================================================"
 
     for test in "${tests[@]}"; do
-        "${test}" && ((passed++)) || :
+        { "${test}" && ((passed++)) } || :
     done
 
     local failed=$(( ${#tests[@]} - passed ))
