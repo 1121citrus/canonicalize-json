@@ -38,6 +38,8 @@ jobs:
   build:
     needs: lint
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -132,7 +134,7 @@ jobs:
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: ${{ env.IMAGE }}:${{ github.ref_name }}
+          image-ref: ${{ env.IMAGE }}:${{ needs.build.outputs.version }}
           format: table
           severity: CRITICAL,HIGH,MEDIUM,LOW
           exit-code: '1'
