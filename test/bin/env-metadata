@@ -2,7 +2,7 @@
 
 # canonicalize-json: verify build-time metadata is embedded correctly.
 #
-# Copyright (C) 2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 set -euo pipefail

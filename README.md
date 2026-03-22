@@ -111,6 +111,7 @@ AFTER: }
   ```bash
   echo '{"b":1,"a":2}' | docker run -i --rm --read-only --tmpfs /tmp 1121citrus/canonicalize-json:latest
   ```
+
 - **Supply-chain integrity:** Python dependencies in `requirements.txt` are
   hash-pinned (`--require-hashes`).  The base image is pinned to a specific
   Python *and* Alpine minor version (e.g. `python:3.13.7-alpine3.21`) so the
@@ -126,27 +127,27 @@ during dependency installation (enabled automatically when using
 `docker buildx`).
 
 ```bash
-VERSION=x.y.z ./build
+./build --version x.y.z
 ```
 
 To build and push to Docker Hub (multi-platform `linux/amd64` + `linux/arm64`):
 
 ```bash
-VERSION=x.y.z PUSH=true ./build
+./build --push --version x.y.z
 ```
 
 The build script will:
 
-1. Lint the Dockerfile with [hadolint](https://github.com/hadolint/hadolint)
-2. Build the image locally and tag it as `1121citrus/canonicalize-json:VERSION`
-   and `canonicalize-json`.  The `:latest` tag is **not** applied when
-   `VERSION=dev` (the default) to avoid overwriting a production tag in the
-   local Docker daemon.
-3. Scan with [Trivy](https://github.com/aquasecurity/trivy) — exits non-zero if
+1. Lint the Dockerfile with [hadolint](https://github.com/hadolint/hadolint) and
+   all shell scripts with [shellcheck](https://github.com/koalaman/shellcheck).
+2. Build the image locally and tag it as `1121citrus/canonicalize-json:VERSION`.
+   The `:latest` tag is **not** applied for development builds (when `--version`
+   is not specified) to avoid overwriting a production tag in the local Docker
+   daemon.
+3. Run the integration test suite against the locally built image.
+4. Scan with [Trivy](https://github.com/aquasecurity/trivy) — exits non-zero if
    any fixable HIGH or CRITICAL CVEs are found.
-4. Scan with [Docker Scout](https://docs.docker.com/scout/) if the plugin is
-   installed (non-fatal if absent).
-5. Optionally push a multi-platform image to Docker Hub when `PUSH=true`,
+5. Optionally push a multi-platform image to Docker Hub when `--push` is given,
    including SBOM and provenance attestations.
 
 ## Testing

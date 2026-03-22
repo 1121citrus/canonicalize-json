@@ -5,7 +5,7 @@
 The image is built with defence-in-depth from the ground up:
 
 | Control | Implementation |
-|---------|---------------|
+| --- | --- |
 | Non-root execution | Dedicated `canonicalize-json` user, UID 10001, shell `/sbin/nologin` |
 | Minimal base image | `python:3.13.x-alpine3.21` — no package manager, no shell utilities beyond what Alpine includes |
 | Supply-chain pinning | `pip install --require-hashes` with explicit SHA-256 digests for every Python dependency |
@@ -14,8 +14,8 @@ The image is built with defence-in-depth from the ground up:
 | Read-only filesystem | No files are written at runtime; compatible with `--read-only --tmpfs /tmp` |
 | Least-privilege Python | `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1` |
 | SLSA Build Provenance | SLSA Level 3 attestations on every published image |
-| SBOM attestation | CycloneDX SBOM attached to every published image |
-| Vulnerability scanning | Trivy (Aqua) and Docker Scout scan every CI build; fixable HIGH/CRITICAL CVEs block the pipeline |
+| SBOM attestation | SPDX SBOM attached to every published image |
+| Vulnerability scanning | Trivy (Aqua) scans every CI build; fixable HIGH/CRITICAL CVEs block the pipeline |
 
 ---
 
@@ -47,7 +47,7 @@ formatting already-parsed JSON for human readability.
 #### CVE-2024-53427 — Stack buffer overflow in NaN handling
 
 | Field | Detail |
-|-------|--------|
+| --- | --- |
 | Severity | HIGH (CVSS 8.1) |
 | Alpine 3.21 fix | Not available |
 | Upstream fix | jq 1.8.0 |
@@ -68,7 +68,7 @@ NaN-parsing code path is never reached.
 #### CVE-2025-48060 — Heap buffer overflow in string formatting
 
 | Field | Detail |
-|-------|--------|
+| --- | --- |
 | Severity | HIGH (CVSS 7.7 v4.0 / 7.5 v3.1) |
 | Alpine 3.21 fix | Not available |
 | Upstream fix | jq 1.7.2 |
@@ -88,8 +88,8 @@ pretty-printing, so the code path is reachable.  However, JSON input arrives
 canonically structured UTF-8 string — not attacker-controlled raw bytes.  A
 successful exploit would require a JSON value that survives RFC 8785
 normalisation and still triggers the allocation underestimate; that is a
-significantly narrowed attack surface.  Trivy and Docker Scout both report this
-as unfixed in Alpine 3.21; it is accepted pending the Alpine 3.22 / jq 1.8.x
+significantly narrowed attack surface.  Trivy reports this as unfixed in
+Alpine 3.21; it is accepted pending the Alpine 3.22 / jq 1.8.x
 upgrade path below.
 
 ---
@@ -97,7 +97,7 @@ upgrade path below.
 #### CVE-2024-23337 — Integer overflow in array/object operations
 
 | Field | Detail |
-|-------|--------|
+| --- | --- |
 | Severity | MEDIUM (CVSS 6.5) |
 | Alpine 3.21 fix | Not available |
 | Upstream fix | jq commit de21386 |
@@ -137,7 +137,7 @@ HIGH/CRITICAL vulnerabilities remain blocking.
 ## Dependency Policy
 
 | Component | Pinning strategy |
-|-----------|-----------------|
+| --- | --- |
 | Python base image | Minor version pinned (`python:3.13.x-alpine3.21`); patch bumped by Dependabot |
 | Alpine OS packages | Upgraded to latest patch via `apk upgrade --no-cache` at every build |
 | pip | Exact version pin in Dockerfile (`pip==x.y.z`) |

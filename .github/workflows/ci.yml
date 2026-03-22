@@ -46,10 +46,13 @@ jobs:
       - name: Set build metadata
         id: meta
         run: |
-          # Derive a human-readable version string from the Git ref:
+          # Derive a version string from the Git ref for tagging the local image.
+          # The build stage uses the raw ref name so the test stage can load
+          # the image by the same tag.  The push stage maps these to the final
+          # registry tags (e.g. "main" → ":edge", "staging" → ":staging-<ts>").
           #   refs/tags/v1.2.3  → "1.2.3"
-          #   refs/heads/main   → "edge"
-          #   refs/heads/staging → handled in push stage
+          #   refs/heads/main   → "main"   (push stage re-tags as :edge)
+          #   refs/heads/staging → "staging" (push stage re-tags as :staging-<ts>)
           #   pull_request       → "pr-<number>"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"

@@ -2,7 +2,7 @@
 
 # canonicalize-json: run the full test suite.
 #
-# Copyright (C) 2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 set -euo pipefail

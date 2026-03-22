@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-canonicalize-json.py: Canonicalize JSON per JCS (RFC 8785).
+canonicalize_json.py: Canonicalize JSON per JCS (RFC 8785).
 
 A containerized `JCS (RFC 8785) <https://datatracker.ietf.org/doc/html/rfc8785>`_
 compliant JSON formatter, utilizing the `Python JCS <https://pypi.org/project/jcs>`_
