@@ -60,6 +60,10 @@ test scripts that default to `IMAGE:latest`.
 
 Artifact retention: 1 day.
 
+**Docker layer cache:** `cache-from: type=gha` / `cache-to: type=gha,mode=max` — build
+layers are saved to and restored from GitHub Actions cache, speeding up incremental
+builds. The push job restores from the same cache.
+
 ---
 
 ## Stage 3: Test
@@ -107,6 +111,7 @@ for traceability.
 
 - **Platforms:** `linux/amd64`, `linux/arm64`
 - **Attestations:** `sbom: true` + `provenance: mode=max` (SLSA L3)
+- **Layer cache:** `cache-from: type=gha` / `cache-to: type=gha,mode=max`
 
 ---
 
