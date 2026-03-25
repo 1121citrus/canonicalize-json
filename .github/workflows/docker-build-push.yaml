@@ -6,6 +6,11 @@ name: Build and Push (staging)
     branches:
       - staging
 
+# Cancel in-progress staging builds; newer push supersedes older.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-push:
     runs-on: ubuntu-latest

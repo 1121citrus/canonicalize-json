@@ -6,6 +6,12 @@ name: Semantic Versioning, Docker Build, Push, and Scan
     branches:
       - main
 
+# Allow only one run at a time; in-progress runs are NOT cancelled so that
+# the semver tag push always completes before the next run starts.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   semver:
     runs-on: ubuntu-latest
