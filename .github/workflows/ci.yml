@@ -32,13 +32,10 @@ jobs:
           dockerfile: Dockerfile
 
       - name: Lint shell scripts with shellcheck
-        run: |
-          shellcheck -x \
-            src/canonicalize-json \
-            build \
-            test/run-all-tests \
-            test/build-options \
-            test/bin/*
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        with:
+          scandir: "."
+          severity: warning
 
       - name: Lint markdown with markdownlint-cli
         run: |
