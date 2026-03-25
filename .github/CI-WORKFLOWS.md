@@ -82,6 +82,10 @@ Scans the built image **before** it is pushed to Docker Hub.
 - **Severity:** CRITICAL, HIGH
 - **Blocking:** `exit-code: 1` — fails and blocks push if fixable CVEs found
 - **Noise reduction:** `ignore-unfixed: true` — suppresses CVEs with no available patch
+- **DB caching:** `~/.cache/trivy` is cached between runs with `actions/cache`; the
+  vulnerability DB is only re-downloaded when the cache is cold or the DB has been updated
+- **Download noise:** `TRIVY_NO_PROGRESS=true` suppresses progress bars; `TRIVY_QUIET=true`
+  suppresses `INFO [vulndb]` log lines during DB download
 
 ---
 
@@ -143,6 +147,7 @@ On push/PR
 - `requirements.txt` — Python dependencies (pip)
 - `build` — Local build script
 - `test/run-all-tests` — Integration test runner
+- `test/build-options` — Build script CLI option coverage test
 - `test/bin/canonicalize` — Canonicalization test
 - `test/bin/prettify` — Pretty-print test
 
@@ -164,4 +169,6 @@ dependencies current.
 
 ## Local Workflow Parity
 
+- `./build` supports `--advice` (alias for `--advise`) and `--cache` for one-run
+  scanner cache controls.
 - `./build` — local equivalent of the CI build + push pipeline

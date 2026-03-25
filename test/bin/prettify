@@ -68,7 +68,9 @@ run_tests() {
     echo "===================================================="
 
     for testfile in "${tests[@]}"; do
-        "${testfile}" && ((passed++)) || :
+        if "${testfile}"; then
+            ((passed++))
+        fi
     done
 
     local failed=$((${#tests[@]} - passed))
