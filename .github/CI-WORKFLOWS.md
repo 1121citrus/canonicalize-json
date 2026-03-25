@@ -18,6 +18,11 @@ for the canonicalize-json utility.
 
 Single unified workflow for all CI/CD stages.
 
+### Global configuration
+
+- **Image name:** `1121citrus/canonicalize-json`
+- **Node.js actions runtime:** v24 (via `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`)
+
 ### Trigger Events
 
 - **Push:** `main`, `master`, `staging` branches and `v*` version tags
