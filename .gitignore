@@ -252,3 +252,4 @@ cython_debug/
 .project
 
 
+*.new
