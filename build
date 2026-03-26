@@ -190,6 +190,8 @@ parse_cache_rules() {
         value="${entry#*=}"
         key="${key//[[:space:]]/}"
         value="${value//[[:space:]]/}"
+        key="${key,,}"
+        value="${value,,}"
 
         if [[ -z "${key}" && -z "${value}" ]]; then
             continue
@@ -273,6 +275,8 @@ while [[ $# -gt 0 ]]; do
             ADVISE_DIVE=false
             IFS=',' read -ra adv_list <<< "$advisements"
             for adv in "${adv_list[@]}"; do
+                adv="${adv//[[:space:]]/}"
+                adv="${adv,,}"
                 case "$adv" in
                     grype)  ADVISE_GRYPE=true ;;
                     scout)  ADVISE_SCOUT=true ;;
@@ -545,6 +549,8 @@ if [[ "${ADVISE_GRYPE}" == "true" ]]; then
             echo "    Warning: could not prime Grype DB; skipping Grype" >&2
             _grype_run_scan=false
         fi
+    else
+        echo "    Grype DB cache is ready" >&2 || true
     fi
 
     if [[ "${_grype_run_scan}" == "true" ]]; then
@@ -555,9 +561,9 @@ if [[ "${ADVISE_GRYPE}" == "true" ]]; then
             -e GRYPE_DB_AUTO_UPDATE=false \
             "${GRYPE_IMAGE}:${GRYPE_TAG}" \
                 docker-archive:/scan.tar || {
-            echo "    Grype scan timed out or failed (advisory only)" >&2
+            echo "    Grype scan timed out or failed (advisory only)" >&2 || true
         }
-    fi
+    fi || true
 fi
 
 # Clean up shared scan archive.
