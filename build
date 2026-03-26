@@ -406,10 +406,7 @@ if [[ "${LINT}" == "true" ]]; then
         -x \
         src/canonicalize-json \
         build \
-        test/run-all-tests \
-        test/build-options \
-        test/bin/canonicalize \
-        test/bin/prettify)
+        test/run-all-tests)
 
     echo "    markdownlint **/*.md" >&2
     (cd "${script_dir}" && run docker run --rm \
