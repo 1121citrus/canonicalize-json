@@ -64,9 +64,15 @@ AFTER: }
 
 ## Building
 
-BuildKit is required because the Dockerfile uses cache and bind mounts during dependency installation (enabled automatically when using `docker buildx`).
+Use the `build` script:
 
-1. `docker buildx build --sbom=true --provenance=true --provenance=mode=max --platform linux/amd64,linux/arm64 -t 1121citrus/canonicalize-json:latest -t 1121citrus/canonicalize-json:x.y.z --push .`
+```bash
+# Local build — lint, build, test, scan
+./build
+
+# Release — push version 1.2.3 with semver sub-tags (:1.2.3, :1.2, :1, :latest)
+./build --push --version 1.2.3
+```
 
 ## Testing
 
