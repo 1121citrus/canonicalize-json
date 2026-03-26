@@ -70,5 +70,19 @@ USER canonicalize-json
 # Copy the source code into the container.
 COPY --chmod=755 ./src/canonicalize_json.py .
 
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+LABEL org.opencontainers.image.title="canonicalize-json" \
+      org.opencontainers.image.description="JCS (RFC 8785) compliant JSON formatter" \
+      org.opencontainers.image.url="https://github.com/1121citrus/canonicalize-json" \
+      org.opencontainers.image.source="https://github.com/1121citrus/canonicalize-json" \
+      org.opencontainers.image.vendor="1121 Citrus Avenue" \
+      org.opencontainers.image.authors="James Hanlon <jim@hanlonsoftware.com>" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
+
 ENTRYPOINT [ "/usr/local/bin/canonicalize-json" ]
 
