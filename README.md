@@ -77,9 +77,3 @@ Use the `build` script:
 ## Testing
 
 Individual tests are in `test/bin`. To run all tests invoke `bash test/run-all-tests`
-
-<!--
-## Releasing
-
-1. [Draft a new release on GitHub](https://github.com/1121citrus/canonicalize-json/releases/new)
--->
