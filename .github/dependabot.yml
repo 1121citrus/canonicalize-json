@@ -24,6 +24,19 @@ updates:
       - "dependencies"
       - "github-actions"
 
+  # ── Docker ──────────────────────────────────────────────────────────────────
+  # Tracks the base image version pinned directly in the FROM line.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "docker"
+
   # ── Python pip ───────────────────────────────────────────────────────────────
   # Keeps requirements.txt dependencies up to date.
   - package-ecosystem: "pip"

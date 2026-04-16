@@ -13,8 +13,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-ARG PYTHON_VERSION=3.13.7
-FROM python:${PYTHON_VERSION}-alpine AS builder
+# Pin the version so Dependabot can track base-image updates and bumps are
+# explicit, reviewable PRs rather than silent upgrades.
+FROM python:3.13.7-alpine3.22 AS builder
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -34,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install --no-cache-dir --prefix="/install" -r requirements.txt
 
-FROM python:${PYTHON_VERSION}-alpine
+FROM python:3.13.7-alpine3.22
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
