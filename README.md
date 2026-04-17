@@ -114,7 +114,7 @@ AFTER: }
 
 - **Supply-chain integrity:** Python dependencies in `requirements.txt` are
   hash-pinned (`--require-hashes`).  The base image is pinned to a specific
-  Python *and* Alpine minor version (e.g. `python:3.13.7-alpine3.21`) so the
+  Python *and* Alpine minor version (e.g. `python:3.13.7-alpine3.22`) so the
   OS package set is reproducible across builds.
 - **SBOM and provenance:** Published images carry an SPDX Software Bill of
   Materials and a SLSA Build Provenance Level 3 attestation, both stored as

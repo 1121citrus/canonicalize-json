@@ -44,7 +44,7 @@ Validates Dockerfile and shell scripts before building.
    - Checks for best practices and anti-patterns
 
 3. **Lint shell scripts with shellcheck**
-   - Targets: `src/canonicalize-json`, `build`, `test/run-all-tests`, all `test/bin/*`
+   - Targets: `src/canonicalize-json`, `build`, `test/run-all-tests`
    - Enables dependency resolution (`-x` flag)
 
 ---

@@ -24,6 +24,21 @@ updates:
       - "dependencies"
       - "github-actions"
 
+  # ── Docker ──────────────────────────────────────────────────────────────────
+  # Tracks the python:X.Y.Z-alpineX.Y base image pinned directly in the FROM
+  # line.  When Dependabot proposes a bump, also update the pip ecosystem
+  # entry's Alpine version comment if the Alpine component changes.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "docker"
+
   # ── Python (pip) ────────────────────────────────────────────────────────────
   # Keeps requirements.txt dependencies up to date.
   # After merging a Dependabot PR, regenerate hash pins per CONTRIBUTING.md:

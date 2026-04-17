@@ -7,7 +7,7 @@ The image is built with defence-in-depth from the ground up:
 | Control | Implementation |
 | --- | --- |
 | Non-root execution | Dedicated `canonicalize-json` user, UID 10001, shell `/sbin/nologin` |
-| Minimal base image | `python:3.13.x-alpine3.21` — no package manager, no shell utilities beyond what Alpine includes |
+| Minimal base image | `python:3.13.x-alpine3.22` — Alpine 3.22 includes jq 1.8.x which resolves all previously open jq CVEs |
 | Supply-chain pinning | `pip install --require-hashes` with explicit SHA-256 digests for every Python dependency |
 | OS patch hygiene | `apk upgrade --no-cache` runs at image-build time, pulling in all available Alpine security patches |
 | No network at runtime | Image makes no outbound connections; suitable for `--network=none` |
@@ -32,17 +32,11 @@ Scanned **2026-03-18** against `1121citrus/canonicalize-json:dev`.
 All Alpine packages are patched via `apk upgrade --no-cache` at build time.
 See [Dockerfile](Dockerfile) and the associated changelog entry.
 
-### jq — 3 open CVEs (accepted, mitigated)
+### jq — 3 CVEs resolved (Alpine 3.22 / jq 1.8.1)
 
-jq `1.7.1-r0` is the only version published for Alpine 3.21 as of this writing.
-All three CVEs below have **no fixed version available in Alpine 3.21**; they are
-fixed upstream in jq 1.8.x and in Alpine edge (`jq 1.8.1-r0`).
-
-The image's exposure is **structurally limited** because jq is invoked in exactly
-one place (`src/canonicalize-json`, line `jq --indent "${INDENT:-2}" .`) and only
-when the user explicitly opts in via `PRETTIFY=true`.  There are no user-supplied
-jq filters, no `--slurp` flag, and no arithmetic operations — the sole function is
-formatting already-parsed JSON for human readability.
+The upgrade to Alpine 3.22 (`jq 1.8.1-r0`) resolves all three CVEs listed below.
+They are retained here for historical reference and to document the analysis that
+justified accepting them while the upgrade path was pending.
 
 #### CVE-2024-53427 — Stack buffer overflow in NaN handling
 
@@ -116,21 +110,11 @@ index operations; the integer boundary is never approached during indentation.
 
 ---
 
-### Remediation path for jq CVEs
+### Remediation status for jq CVEs
 
-All three CVEs are resolved in jq 1.8.x (available in Alpine edge as
-`jq 1.8.1-r0`).  The planned upgrade path is:
-
-1. **Pin to Alpine 3.22** once `python:3.13.x-alpine3.22` is published to
-   Docker Hub (Alpine 3.22 ships jq 1.8.x in its main repository).
-2. **Or add an Alpine edge package overlay** — mount only the `community` repo
-   from Alpine edge for the jq package while keeping the base image on 3.21.
-   This is a viable interim option but is more complex to maintain.
-
-Until one of these options is available, the three CVEs are accepted with the
-mitigations documented above.  The CI pipeline is configured with
-`--ignore-unfixed` so that unfixable CVEs do not block builds, while fixable
-HIGH/CRITICAL vulnerabilities remain blocking.
+All three CVEs are resolved by the upgrade to Alpine 3.22 (`jq 1.8.1-r0`),
+completed when the base image was pinned to `python:3.13.7-alpine3.22`.
+No further action is required.
 
 ---
 
@@ -138,9 +122,9 @@ HIGH/CRITICAL vulnerabilities remain blocking.
 
 | Component | Pinning strategy |
 | --- | --- |
-| Python base image | Minor version pinned (`python:3.13.x-alpine3.21`); patch bumped by Dependabot |
+| Python base image | Pinned to `python:3.13.x-alpine3.22`; Dependabot opens PRs for bumps |
 | Alpine OS packages | Upgraded to latest patch via `apk upgrade --no-cache` at every build |
-| pip | Exact version pin in Dockerfile (`pip==x.y.z`) |
+| pip | Installed via `--require-hashes` with exact version in `requirements.txt` |
 | Python dependencies | Exact version + SHA-256 hash in `requirements.txt`; `--require-hashes` enforced |
 | GitHub Actions | SHA-pinned to full commit hash; Dependabot updates weekly |
 | jq | Latest available in pinned Alpine minor; no separate pin needed beyond the base image |

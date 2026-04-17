@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main, master]
 
+# Cancel in-progress runs for branch/PR refs; let tag builds always complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 # Minimal permissions by default; individual jobs add only what they need.
 permissions:
   contents: read
@@ -30,7 +35,6 @@ jobs:
       - name: Lint shell scripts with shellcheck
         run: |
           shellcheck -x src/canonicalize-json build test/run-all-tests
-          shellcheck -x test/bin/*
 
   # ── Stage 2: Build ────────────────────────────────────────────────────────
   # Build the image, save it as a gzip artifact, and pass it to downstream jobs
@@ -111,9 +115,9 @@ jobs:
         run: gunzip -c /tmp/image.tar.gz | docker load
 
       - name: Run test suite
-        # TAG is set so the test scripts target the version-specific tag rather
-        # than ":latest", which may not be present in this environment.
-        run: TAG="${GITHUB_REF_NAME#v}" bash test/run-all-tests
+        # IMAGE is the full image:tag reference; test/run-all-tests passes it
+        # into the bats container so tests target the version-specific tag.
+        run: IMAGE="${{ env.IMAGE }}:${{ needs.build.outputs.version }}" bash test/run-all-tests
 
   # ── Stage 4: Security scan ────────────────────────────────────────────────
   # Run Trivy against the built image.  exit-code: '1' fails the job (and

@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
-
 # canonicalize-json: run the full test suite.
 #
-# Copyright (C) 2025–2026 James Hanlon [mailto:jim@hanlonsoftware.com]
+# Copyright (C) 2025 James Hanlon [mailto:jim@hanlonsoftware.com]
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 set -euo pipefail
 
 whereami=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
-# Default to the tag produced by a local `./build` run (VERSION=dev).
-# CI overrides this by setting TAG before invoking this script.
-export TAG="${TAG:-dev}"
-
-status=0
-while read -r testfile; do
-    echo "Running test: ${testfile}"
-    bash "${testfile}" || status=1
-done < <(find "${whereami}/bin" -mindepth 1 -maxdepth 1 -type f | sort)
-exit $status
+(
+    cd "${whereami}/.." && docker run --rm --interactive \
+        -v "${PWD}:${PWD}" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -e "IMAGE=${IMAGE:-}" \
+        --workdir "${PWD}" \
+        --entrypoint sh \
+        bats/bats:1.13.0 \
+        -c "apk add --quiet --no-cache docker-cli jq >/dev/null 2>&1 && bats test"
+)

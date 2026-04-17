@@ -24,7 +24,7 @@ Include:
 4. Run shellcheck locally on any shell files you changed:
 
    ```bash
-   shellcheck -x src/canonicalize-json build test/run-all-tests test/bin/*
+   shellcheck -x src/canonicalize-json build test/run-all-tests
    ```
 
 5. Run hadolint if you changed the Dockerfile:
@@ -52,8 +52,9 @@ Update both hash lines in `requirements.txt`.  The Dockerfile enforces
 
 ### Base image (`Dockerfile`)
 
-When bumping `PYTHON_VERSION` or `ALPINE_VERSION`, verify that the specific
-`python:<PYTHON_VERSION>-alpine<ALPINE_VERSION>` tag exists on Docker Hub
+The base image is hardcoded directly in both `FROM` lines and tracked by
+Dependabot (see `.github/dependabot.yml`).  When Dependabot opens a bump PR,
+verify that the proposed `python:X.Y.Z-alpineX.Y` tag exists on Docker Hub
 before merging.
 
 ### GitHub Actions
