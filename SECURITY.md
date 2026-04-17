@@ -25,7 +25,9 @@ Scanned **2026-03-18** against `1121citrus/canonicalize-json:dev`.
 
 ### Python packages — 0 CVEs
 
-`jcs 0.2.1` and `pip 26.0.1` are clean per both Trivy and pip-audit.
+`jcs 0.2.1` is clean per both Trivy and pip-audit.  `pip` is uninstalled
+from the final image (only needed in the `builder` stage) so it does not
+appear in Trivy's package inventory.
 
 ### Alpine OS packages — 0 CVEs
 

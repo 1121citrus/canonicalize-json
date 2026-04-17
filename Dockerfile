@@ -63,6 +63,9 @@ ENV INDENT=2
 # hadolint ignore=DL3018,DL3017
 RUN apk upgrade --no-cache \
     && apk add --no-cache "jq=1.8.1-r0"
+# pip is only needed in the builder stage to install Python dependencies.
+# Remove it from the final image to eliminate its CVE surface.
+RUN python -m pip uninstall -y pip
 COPY --from=builder /install /usr/local
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
