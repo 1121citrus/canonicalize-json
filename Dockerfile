@@ -55,30 +55,31 @@ ENV DEBUG=false
 ENV PRETTIFY=false
 ENV INDENT=2
 
-# Apply all available security patches from the Alpine repository before
-# adding application packages.  Alpine 3.22 ships jq 1.8.1 which resolves
-# all previously open jq CVEs (CVE-2024-53427, CVE-2025-48060, CVE-2024-23337).
+# Consolidate OS setup into a single layer to minimise wasted bytes visible
+# to dive.  Combining apk, pip removal, and adduser into one RUN prevents
+# inter-layer waste that would otherwise accumulate across separate layers.
+#
+# Alpine 3.22 ships jq 1.8.1-r0, which resolves all previously open jq CVEs
+# (CVE-2024-53427, CVE-2025-48060, CVE-2024-23337).  pip is removed because
+# it is only needed in the builder stage; removing it here eliminates its CVE
+# surface in the final image.
+#
 # DL3018: version pinning is handled by pinning the Alpine base image minor
 # version; pinning individual package versions inside apk add is redundant.
 # hadolint ignore=DL3018,DL3017
+ARG UID=10001
 RUN apk upgrade --no-cache \
-    && apk add --no-cache "jq=1.8.1-r0"
-# pip is only needed in the builder stage to install Python dependencies.
-# Remove it from the final image to eliminate its CVE surface.
-RUN python -m pip uninstall -y pip
+    && apk add --no-cache "jq=1.8.1-r0" \
+    && python -m pip uninstall -y pip \
+    && adduser \
+        --disabled-password --gecos "" --shell "/sbin/nologin" \
+        --no-create-home --uid "${UID}" \
+        canonicalize-json
 COPY --from=builder /install /usr/local
 COPY --chmod=755 ./src/canonicalize-json /usr/local/bin/
 
 WORKDIR ${__1121CITRUS_APP_DIR}
 ENV PATH=${__1121CITRUS_APP_DIR}/bin/:${PATH}
-
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
-ARG UID=10001
-RUN adduser \
-        --disabled-password --gecos "" --shell "/sbin/nologin" \
-        --no-create-home --uid "${UID}" \
-        canonicalize-json
 
 # Switch to the non-privileged user to run the application.
 USER canonicalize-json
