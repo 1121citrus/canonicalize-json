@@ -7,6 +7,19 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.6](https://github.com/1121citrus/canonicalize-json/compare/v1.0.5...v1.0.6) (2026-04-18)
+
+
+### Bug Fixes
+
+* remove pip from final image to eliminate CVE surface ([13e2d33](https://github.com/1121citrus/canonicalize-json/commit/13e2d33d1acc85ec78b0f4c3a79cbfffb286fea3))
+* unify test environment and add missing test suite ([8c12fc2](https://github.com/1121citrus/canonicalize-json/commit/8c12fc22da4d66addfa516d25a5e97b316cc3704))
+
+
+### Performance Improvements
+
+* consolidate final-stage RUN layers to improve dive efficiency ([412547d](https://github.com/1121citrus/canonicalize-json/commit/412547d043c656348e087b891b34d6eb32c1ec9a))
+
 ## [Unreleased]
 
 ### Security
