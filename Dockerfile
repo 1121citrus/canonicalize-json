@@ -15,7 +15,7 @@
 
 # Pin the version so Dependabot can track base-image updates and bumps are
 # explicit, reviewable PRs rather than silent upgrades.
-FROM python:3.14.0-alpine3.22 AS builder
+FROM python:3.14.1-alpine3.22 AS builder
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --require-hashes --no-cache-dir --prefix="/install" \
         -r requirements.txt
 
-FROM python:3.14.0-alpine3.22
+FROM python:3.14.1-alpine3.22
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1

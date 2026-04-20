@@ -1,0 +1,15 @@
+# Grype scan configuration for canonicalize-json.
+#
+# Only Critical/High findings block the build; Medium/Low are advisory only.
+
+fail-on-severity: "high"
+
+ignore:
+
+  # sqlite ≤3.49.2-r1 — HIGH CVE-2025-70873; no fix in Alpine 3.22 at time
+  # of writing.  `apk upgrade` is run at build time; if Alpine publishes a
+  # patched sqlite, the upgrade will install it and this entry can be removed.
+  - vulnerability: CVE-2025-70873
+    package:
+      name: sqlite
+      type: apk

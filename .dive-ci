@@ -1,0 +1,18 @@
+rules:
+  # python:3.14.0-alpine3.22 ships OpenSSL, musl, and busybox.  The `apk
+  # upgrade` RUN step overwrites those files with patched versions; the old
+  # base-image versions remain in the lower layer and are counted as wasted by
+  # Dive.  The measured baseline efficiency is ~85.7%; the threshold is set
+  # below that with headroom for minor build-to-build variation.
+  lowestEfficiency: 0.82
+
+  # `apk upgrade` overwrites libcrypto.so.3, libssl.so.3, busybox, and musl
+  # (~18 MB) that were shipped in the base image.  These remain in the lower
+  # layer as "wasted" bytes even though the upgrade is intentional (security
+  # patches).  The measured baseline is ~35%; threshold set above that with
+  # buffer.
+  highestUserWastedPercent: 0.40
+
+  # Absolute wasted-bytes rule is less meaningful here than the percentage
+  # rule above; disable to avoid redundant failures.
+  highestWastedBytes: disabled
