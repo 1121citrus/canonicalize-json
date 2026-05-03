@@ -1,0 +1,6 @@
+[allowlist]
+description = "Project-level false positive allowlist"
+
+[[allowlist.findings]]
+# README.md line 165: "invalid/empty input rejection" — not a secret
+fingerprints = ["aeaeb9e76b716bf036199b49a3469e1e1cf708ad:README.md:generic-api-key:165"]
