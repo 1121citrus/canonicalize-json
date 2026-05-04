@@ -15,6 +15,8 @@
 
 # Pin the version so Dependabot can track base-image updates and bumps are
 # explicit, reviewable PRs rather than silent upgrades.
+# CVE-2026-6100 (Critical; no fix available) is present in all current Python
+# releases.  It is suppressed in .grype.yaml pending an upstream fix.
 FROM python:3.14.1-alpine3.22 AS builder
 
 # Prevents Python from writing pyc files.

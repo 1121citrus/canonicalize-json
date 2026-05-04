@@ -6,10 +6,43 @@ fail-on-severity: "high"
 
 ignore:
 
-  # sqlite ≤3.49.2-r1 — HIGH CVE-2025-70873; no fix in Alpine 3.22 at time
-  # of writing.  `apk upgrade` is run at build time; if Alpine publishes a
-  # patched sqlite, the upgrade will install it and this entry can be removed.
+  # python — CRITICAL CVE-2026-6100; no fix available as of 2026-05-03.
+  # Present in all current Python releases.  Remove when upstream ships a fix.
+  - vulnerability: CVE-2026-6100
+    package:
+      name: python
+      type: binary
+
+  # python 3.14.1 — HIGH CVE-2026-3298; no fix available as of 2026-05-03.
+  - vulnerability: CVE-2026-3298
+    package:
+      name: python
+      type: binary
+
+  # python 3.14.1 — HIGH CVE-2026-4786; no fix available as of 2026-05-03.
+  - vulnerability: CVE-2026-4786
+    package:
+      name: python
+      type: binary
+
+  # sqlite-libs ≤3.49.2-r1 — HIGH CVE-2025-70873; no fix in Alpine 3.22 yet.
+  # `apk upgrade` runs at build time; remove when Alpine publishes a patch.
   - vulnerability: CVE-2025-70873
     package:
-      name: sqlite
+      name: sqlite-libs
+      type: apk
+
+  # busybox 1.37.0-r20 — MEDIUM CVE-2025-60876; no fix in Alpine edge yet.
+  # `apk upgrade` runs at build time; remove when Alpine publishes a patch.
+  - vulnerability: CVE-2025-60876
+    package:
+      name: busybox
+      type: apk
+  - vulnerability: CVE-2025-60876
+    package:
+      name: busybox-binsh
+      type: apk
+  - vulnerability: CVE-2025-60876
+    package:
+      name: ssl_client
       type: apk

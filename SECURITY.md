@@ -7,7 +7,7 @@ The image is built with defence-in-depth from the ground up:
 | Control | Implementation |
 | --- | --- |
 | Non-root execution | Dedicated `canonicalize-json` user, UID 10001, shell `/sbin/nologin` |
-| Minimal base image | `python:3.13.x-alpine3.22` — Alpine 3.22 includes jq 1.8.x which resolves all previously open jq CVEs |
+| Minimal base image | `python:3.14.x-alpine3.22` — Alpine 3.22 includes jq 1.8.x which resolves all previously open jq CVEs |
 | Supply-chain pinning | `pip install --require-hashes` with explicit SHA-256 digests for every Python dependency |
 | OS patch hygiene | `apk upgrade --no-cache` runs at image-build time, pulling in all available Alpine security patches |
 | No network at runtime | Image makes no outbound connections; suitable for `--network=none` |
@@ -21,7 +21,7 @@ The image is built with defence-in-depth from the ground up:
 
 ## Current Vulnerability Status
 
-Scanned **2026-03-18** against `1121citrus/canonicalize-json:dev`.
+Scanned **2026-05-03** against `1121citrus/canonicalize-json:dev`.
 
 ### Python packages — 0 CVEs
 
@@ -112,10 +112,36 @@ index operations; the integer boundary is never approached during indentation.
 
 ---
 
+### Python runtime — 3 CVEs (no fix available)
+
+| CVE | Severity | Fixed in |
+| --- | --- | --- |
+| CVE-2026-6100 | CRITICAL | No fix available |
+| CVE-2026-3298 | HIGH | No fix available |
+| CVE-2026-4786 | HIGH | No fix available |
+
+All three are present in Python 3.14.1 with no upstream fix as of
+2026-05-04.  All are suppressed in `.grype.yaml`.  Remove the individual
+ignore entries when CPython ships patched releases.
+
+---
+
+### Alpine OS packages — 2 CVEs (no fix available)
+
+| CVE | Package | Version | Severity | Fixed in |
+| --- | --- | --- | --- | --- |
+| CVE-2025-70873 | `sqlite-libs` | 3.49.2-r1 | HIGH | No fix in Alpine 3.22 |
+| CVE-2025-60876 | `busybox` / `busybox-binsh` / `ssl_client` | 1.37.0-r20 | MEDIUM | No fix in Alpine 3.22 |
+
+Both are suppressed in `.grype.yaml`.  `apk upgrade --no-cache` runs at
+every build; the entries can be removed when Alpine ships patched packages.
+
+---
+
 ### Remediation status for jq CVEs
 
 All three CVEs are resolved by the upgrade to Alpine 3.22 (`jq 1.8.1-r0`),
-completed when the base image was pinned to `python:3.13.7-alpine3.22`.
+completed when the base image was pinned to `python:3.14.1-alpine3.22`.
 No further action is required.
 
 ---
@@ -124,7 +150,7 @@ No further action is required.
 
 | Component | Pinning strategy |
 | --- | --- |
-| Python base image | Pinned to `python:3.13.x-alpine3.22`; Dependabot opens PRs for bumps |
+| Python base image | Pinned to `python:3.14.1-alpine3.22`; Dependabot opens PRs for patch bumps |
 | Alpine OS packages | Upgraded to latest patch via `apk upgrade --no-cache` at every build |
 | pip | Installed via `--require-hashes` with exact version in `requirements.txt` |
 | Python dependencies | Exact version + SHA-256 hash in `requirements.txt`; `--require-hashes` enforced |
