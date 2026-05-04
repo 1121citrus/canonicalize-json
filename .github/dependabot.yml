@@ -28,6 +28,11 @@ updates:
   # Tracks the python:X.Y.Z-alpineX.Y base image pinned directly in the FROM
   # line.  When Dependabot proposes a bump, also update the pip ecosystem
   # entry's Alpine version comment if the Alpine component changes.
+  #
+  # Pre-release Python versions (alpha, beta, RC) are excluded: they are not
+  # production-ready and introduce an unknown CVE surface.  Dependabot Docker
+  # does not support semver pre-release filtering natively, so the known
+  # pre-release minor versions are listed explicitly and updated as needed.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -38,6 +43,9 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    ignore:
+      - dependency-name: "python"
+        versions: ["3.15.0a*", "3.15.0b*", "3.15.0rc*"]
 
   # ── Python (pip) ────────────────────────────────────────────────────────────
   # Keeps requirements.txt dependencies up to date.
