@@ -17,7 +17,7 @@
 # explicit, reviewable PRs rather than silent upgrades.
 # CVE-2026-6100 (Critical; no fix available) is present in all current Python
 # releases.  It is suppressed in .grype.yaml pending an upstream fix.
-FROM python:3.14.1-alpine3.22 AS builder
+FROM python:3.14.5-alpine3.22 AS builder
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --require-hashes --no-cache-dir --prefix="/install" \
         -r requirements.txt
 
-FROM python:3.14.1-alpine3.22
+FROM python:3.14.5-alpine3.22
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
