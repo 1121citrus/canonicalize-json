@@ -37,8 +37,8 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "Dockerfile pins python 3.14.1 in both stages" {
-    run grep -c '^FROM python:3\.14\.1-alpine3\.22' "${DOCKERFILE}"
+@test "Dockerfile pins python 3.14.5 in both stages" {
+    run grep -c '^FROM python:3\.14\.5-alpine3\.22' "${DOCKERFILE}"
     [ "$status" -eq 0 ]
     [ "$output" -eq 2 ]
 }

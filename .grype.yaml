@@ -9,6 +9,11 @@ ignore:
   # python — CRITICAL CVE-2026-6100; no fix available as of 2026-05-03.
   # Present in all current Python releases.  Remove when upstream ships a fix.
   - vulnerability: CVE-2026-6100
+
+  # python 3.14.5 — CRITICAL CVE-2026-7210; only fixed in 3.15.0b2 (beta).
+  # No stable 3.14.x fix available as of 2026-06-09.  Remove when a 3.14.x
+  # patch lands or when this image moves to Python 3.15.
+  - vulnerability: CVE-2026-7210
     package:
       name: python
       type: binary
