@@ -9,6 +9,22 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-06-10
+
+### Security
+
+- `Dockerfile`: bumped base image from `python:3.14.1-alpine3.22` to
+  `python:3.14.5-alpine3.22`, resolving CVE-2025-13462 (Critical),
+  CVE-2026-4224 (High), and CVE-2026-3644 (High).
+- `.grype.yaml`: suppress CVE-2026-7210 (Critical) for the Python binary;
+  no stable 3.14.x fix available — only addressed in the 3.15.0b2
+  pre-release.  Remove when a 3.14.x patch ships.
+
+### Changed
+
+- `build`: added advisory stages 5f (metrics via scc) and 5g (security via
+  graudit); pinned `SCC_IMAGE` to `v3.7.0`.
+
 ## [1.1.5] - 2026-05-03
 
 ### Security
@@ -233,7 +249,8 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 - Integration test suite (`test/bin/canonicalize`, `test/bin/prettify`,
   `test/bin/image-structure`, `test/bin/env-metadata`).
 
-[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.6...HEAD
+[1.1.6]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.5...v1.1.6
 [1.1.5]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.2...v1.1.3
