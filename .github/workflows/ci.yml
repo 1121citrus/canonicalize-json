@@ -37,66 +37,12 @@ jobs:
           shellcheck -x src/canonicalize-json build test/run-all-tests
 
   # ── Stage 2: Build ────────────────────────────────────────────────────────
-  # Build the image, save it as a gzip artifact, and pass it to downstream jobs
-  # so they work from an identical, immutable image rather than rebuilding.
   build:
     needs: lint
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set build metadata
-        id: meta
-        run: |
-          # Derive a version string from the Git ref for tagging the local image.
-          # The build stage uses the raw ref name so the test stage can load
-          # the image by the same tag.  The push stage maps these to the final
-          # registry tags (e.g. "main" → ":edge", "staging" → ":staging-<ts>").
-          #   refs/tags/v1.2.3  → "1.2.3"
-          #   refs/heads/main   → "main"   (push stage re-tags as :edge)
-          #   refs/heads/staging → "staging" (push stage re-tags as :staging-<ts>)
-          #   pull_request       → "pr-<number>"
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          elif [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            echo "version=pr-${GITHUB_REF_NAME//\/merge/}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
-          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +%Y%m%dT%H%M%S)" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          load: true
-          # Tag with the version-specific label only in the build stage.
-          # The ":latest" tag is applied exclusively in the push stage, and only
-          # for version tags, to prevent branch and PR builds from polluting the
-          # "latest" pointer locally or in the registry.
-          tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            GIT_COMMIT=${{ steps.meta.outputs.commit }}
-            BUILD_DATE=${{ steps.meta.outputs.date }}
-
-      - name: Save image for downstream jobs
-        # Export using the version tag so downstream jobs load under the same name.
-        run: docker save "$IMAGE:${{ steps.meta.outputs.version }}" | gzip > /tmp/image.tar.gz
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-image
-          path: /tmp/image.tar.gz
-          # Artifacts are only needed for the duration of this workflow run.
-          retention-days: 1
+    uses: 1121citrus/shared-github-workflows/.github/workflows/build.yml@v1
+    with:
+      image: 1121citrus/canonicalize-json
+      inject-metadata: true
 
   # ── Stage 3: Test ─────────────────────────────────────────────────────────
   test:
@@ -115,112 +61,22 @@ jobs:
         run: gunzip -c /tmp/image.tar.gz | docker load
 
       - name: Run test suite
-        # IMAGE is the full image:tag reference; test/run-all-tests passes it
-        # into the bats container so tests target the version-specific tag.
-        run: IMAGE="${{ env.IMAGE }}:${{ needs.build.outputs.version }}" bash test/run-all-tests
+        run: IMAGE="${{ env.IMAGE }}:latest" bash test/run-all-tests
 
   # ── Stage 4: Security scan ────────────────────────────────────────────────
-  # Run Trivy against the built image.  exit-code: '1' fails the job (and
-  # therefore blocks the push) if any fixable HIGH or CRITICAL CVEs are found.
-  # ignore-unfixed suppresses noise from vulnerabilities with no available patch.
   scan:
     needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load image
-        run: gunzip -c /tmp/image.tar.gz | docker load
-
-      - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE }}:${{ needs.build.outputs.version }}
-          format: table
-          severity: CRITICAL,HIGH,MEDIUM,LOW
-          exit-code: '1'
-          ignore-unfixed: true
+    uses: 1121citrus/shared-github-workflows/.github/workflows/scan.yml@v1
+    with:
+      image: 1121citrus/canonicalize-json
 
   # ── Stage 5: Push to Docker Hub ───────────────────────────────────────────
-  # Only runs on direct pushes (not PRs) to main/master/staging or version tags.
-  # Builds a fresh multi-platform image with SBOM and provenance attestations.
   push:
     needs: [test, scan]
     if: >
-      github.event_name == 'push' && (
-        github.ref == 'refs/heads/main'   ||
-        github.ref == 'refs/heads/master' ||
-        startsWith(github.ref, 'refs/tags/v') ||
-        github.ref == 'refs/heads/staging'
-      )
-    runs-on: ubuntu-latest
-    # id-token: write is not required here because Docker Hub authentication
-    # uses username/token secrets (not OIDC).  Keep permissions minimal.
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set build metadata
-        id: meta
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          elif [[ "${GITHUB_REF}" == refs/heads/staging ]]; then
-            echo "version=staging-$(date -u +'%Y.%m.%d.%H%M%S')" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=edge" >> "$GITHUB_OUTPUT"
-          fi
-          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +%Y%m%dT%H%M%S)" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU (multi-platform cross-compilation)
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Determine tags
-        id: tags
-        run: |
-          VERSION="${{ steps.meta.outputs.version }}"
-          TAGS="${IMAGE}:${VERSION}"
-          # Apply ":latest" only for version tags (v1.2.3 → 1.2.3 + latest).
-          # Branch pushes (main, staging) get only their specific tag so the
-          # "latest" pointer in the registry always points to a released version.
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAGS="${TAGS},${IMAGE}:latest"
-          elif [[ "${GITHUB_REF}" == refs/heads/staging ]]; then
-            TAGS="${TAGS},${IMAGE}:staging"
-          fi
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push (multi-platform)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          # linux/amd64 — x86-64 servers and most CI runners
-          # linux/arm64 — Apple Silicon, AWS Graviton, Raspberry Pi 4+
-          platforms: linux/amd64,linux/arm64
-          push: true
-          # Attach an SPDX SBOM and SLSA Build Provenance Level 3 attestation
-          # as OCI referrers so consumers can audit exactly what is in the image.
-          sbom: true
-          provenance: mode=max
-          tags: ${{ steps.tags.outputs.tags }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            GIT_COMMIT=${{ steps.meta.outputs.commit }}
-            BUILD_DATE=${{ steps.meta.outputs.date }}
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
+    uses: 1121citrus/shared-github-workflows/.github/workflows/push.yml@v1
+    with:
+      image: 1121citrus/canonicalize-json
+    secrets: inherit
