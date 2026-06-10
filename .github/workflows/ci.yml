@@ -7,76 +7,18 @@ on:
   pull_request:
     branches: [main, master]
 
-# Cancel in-progress runs for branch/PR refs; let tag builds always complete.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
-# Minimal permissions by default; individual jobs add only what they need.
 permissions:
   contents: read
 
-env:
-  IMAGE: 1121citrus/canonicalize-json
-
 jobs:
-  # ── Stage 1: Lint ──────────────────────────────────────────────────────────
-  # Lint the Dockerfile and all shell scripts before spending time building.
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Lint Dockerfile with hadolint
-        uses: hadolint/hadolint-action@v3.3.0
-        with:
-          dockerfile: Dockerfile
-
-      - name: Lint shell scripts with shellcheck
-        run: |
-          shellcheck -x src/canonicalize-json build test/run-all-tests
-
-  # ── Stage 2: Build ────────────────────────────────────────────────────────
-  build:
-    needs: lint
-    uses: 1121citrus/shared-github-workflows/.github/workflows/build.yml@v1
+  ci:
+    uses: 1121citrus/shared-github-workflows/.github/workflows/pipeline.yml@v1
     with:
       image: 1121citrus/canonicalize-json
-      inject-metadata: true
-
-  # ── Stage 3: Test ─────────────────────────────────────────────────────────
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load image
-        run: gunzip -c /tmp/image.tar.gz | docker load
-
-      - name: Run test suite
-        run: IMAGE="${{ env.IMAGE }}:latest" bash test/run-all-tests
-
-  # ── Stage 4: Security scan ────────────────────────────────────────────────
-  scan:
-    needs: build
-    uses: 1121citrus/shared-github-workflows/.github/workflows/scan.yml@v1
-    with:
-      image: 1121citrus/canonicalize-json
-
-  # ── Stage 5: Push to Docker Hub ───────────────────────────────────────────
-  push:
-    needs: [test, scan]
-    if: >
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/v')
-    uses: 1121citrus/shared-github-workflows/.github/workflows/push.yml@v1
-    with:
-      image: 1121citrus/canonicalize-json
+      test-mode: run-all
+      test-run-all-cmd: ./test/run-all-tests
     secrets: inherit
