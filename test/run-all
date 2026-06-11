@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# 1121citrus.build-date 2026-05-04T00:23:20Z
-# 1121citrus.build-version bb2b9a0df3a1
+# Generator: build-generate
 
 # test/run-all wrapper script
 
@@ -33,7 +32,9 @@ EOF
 
 echo "==> test/run-all: start" >&2
 
-if "${whereami}/.././test/run-all-tests"; then
+if (
+    cd "${whereami}/.." && ./test/run-all-tests
+); then
     finished_at=$(date +%s)
     write_test_summary "passed" 0 "$((finished_at - started_at))"
     echo "==> test/run-all: PASS ($((finished_at - started_at))s)" >&2
