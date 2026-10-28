@@ -37,6 +37,11 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
   Alpine 3.24 package yet.
 - `test/05-fix-regressions.bats`: updated the base-image pin assertion
   to `python:3.14.8-alpine3.24`.
+- `build`: Docker Scout's `docker scout cves` invocation never set a
+  non-zero exit code on findings, so Stage 4c never actually gated
+  the build despite being documented and tested as gating. Added
+  `--exit-code --only-severity critical,high`, matching the
+  Critical/High gate already enforced by Trivy and Grype.
 
 ## [1.1.6] - 2026-06-10
 

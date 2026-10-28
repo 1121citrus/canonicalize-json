@@ -744,7 +744,8 @@ if [[ "${SCAN_SCOUT}" == "true" ]]; then
         run docker scout cves "${full_image}:${VERSION}"
     else
         set +e
-        _scout_out=$(docker scout cves "${full_image}:${VERSION}" 2>&1)
+        _scout_out=$(docker scout cves --exit-code --only-severity critical,high \
+            "${full_image}:${VERSION}" 2>&1)
         _scout_status=$?
         set -e
         if [[ ${_scout_status} -ne 0 ]] \
