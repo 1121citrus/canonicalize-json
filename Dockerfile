@@ -15,9 +15,10 @@
 
 # Pin the version so Dependabot can track base-image updates and bumps are
 # explicit, reviewable PRs rather than silent upgrades.
-# CVE-2026-6100 (Critical; no fix available) is present in all current Python
-# releases.  It is suppressed in .grype.yaml pending an upstream fix.
-FROM python:3.14.5-alpine3.22 AS builder
+# CVE-2025-15367 and CVE-2026-12345 (both Medium; no stable 3.14.x fix,
+# only fixed in 3.15 pre-releases) are present.  Suppressed in .grype.yaml
+# pending an upstream fix.
+FROM python:3.14.8-alpine3.24 AS builder
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -43,7 +44,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --require-hashes --no-cache-dir --prefix="/install" \
         -r requirements.txt
 
-FROM python:3.14.5-alpine3.22
+FROM python:3.14.8-alpine3.24
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -61,7 +62,7 @@ ENV INDENT=2
 # to dive.  Combining apk, pip removal, and adduser into one RUN prevents
 # inter-layer waste that would otherwise accumulate across separate layers.
 #
-# Alpine 3.22 ships jq 1.8.1-r0, which resolves all previously open jq CVEs
+# Alpine 3.24 ships jq 1.8.2-r0, which resolves all previously open jq CVEs
 # (CVE-2024-53427, CVE-2025-48060, CVE-2024-23337).  pip is removed because
 # it is only needed in the builder stage; removing it here eliminates its CVE
 # surface in the final image.
@@ -71,7 +72,7 @@ ENV INDENT=2
 # hadolint ignore=DL3018,DL3017
 ARG UID=10001
 RUN apk upgrade --no-cache \
-    && apk add --no-cache "jq=1.8.1-r0" \
+    && apk add --no-cache "jq=1.8.2-r0" \
     && python -m pip uninstall -y pip \
     && adduser \
         --disabled-password --gecos "" --shell "/sbin/nologin" \

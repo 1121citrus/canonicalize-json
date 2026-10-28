@@ -7,7 +7,7 @@ The image is built with defence-in-depth from the ground up:
 | Control | Implementation |
 | --- | --- |
 | Non-root execution | Dedicated `canonicalize-json` user, UID 10001, shell `/sbin/nologin` |
-| Minimal base image | `python:3.14.x-alpine3.22` — Alpine 3.22 includes jq 1.8.x which resolves all previously open jq CVEs |
+| Minimal base image | `python:3.14.x-alpine3.24` — Alpine 3.24 includes jq 1.8.x which resolves all previously open jq CVEs |
 | Supply-chain pinning | `pip install --require-hashes` with explicit SHA-256 digests for every Python dependency |
 | OS patch hygiene | `apk upgrade --no-cache` runs at image-build time, pulling in all available Alpine security patches |
 | No network at runtime | Image makes no outbound connections; suitable for `--network=none` |
@@ -21,7 +21,7 @@ The image is built with defence-in-depth from the ground up:
 
 ## Current Vulnerability Status
 
-Scanned **2026-05-03** against `1121citrus/canonicalize-json:dev`.
+Scanned **2026-10-28** against `1121citrus/canonicalize-json:dev`.
 
 ### Python packages — 0 CVEs
 
@@ -34,9 +34,9 @@ appear in Trivy's package inventory.
 All Alpine packages are patched via `apk upgrade --no-cache` at build time.
 See [Dockerfile](Dockerfile) and the associated changelog entry.
 
-### jq — 3 CVEs resolved (Alpine 3.22 / jq 1.8.1)
+### jq — 3 CVEs resolved (Alpine 3.24 / jq 1.8.2)
 
-The upgrade to Alpine 3.22 (`jq 1.8.1-r0`) resolves all three CVEs listed below.
+The upgrade to Alpine 3.24 (`jq 1.8.2-r0`) resolves all three CVEs listed below.
 They are retained here for historical reference and to document the analysis that
 justified accepting them while the upgrade path was pending.
 
@@ -112,29 +112,47 @@ index operations; the integer boundary is never approached during indentation.
 
 ---
 
-### Python runtime — 3 CVEs (no fix available)
+### Python runtime — 2 CVEs (no fix available)
 
 | CVE | Severity | Fixed in |
 | --- | --- | --- |
-| CVE-2026-6100 | CRITICAL | No fix available |
-| CVE-2026-3298 | HIGH | No fix available |
-| CVE-2026-4786 | HIGH | No fix available |
+| CVE-2025-15367 | MEDIUM | 3.15.0a6 (alpha only) |
+| CVE-2026-12345 | MEDIUM | 3.15.0rc3 (rc only) |
 
-All three are present in Python 3.14.1 with no upstream fix as of
-2026-05-04.  All are suppressed in `.grype.yaml`.  Remove the individual
-ignore entries when CPython ships patched releases.
+Both are present in Python 3.14.8 with no stable 3.14.x fix as of
+2026-10-28.  Both are suppressed in `.grype.yaml`.  Remove the individual
+ignore entries when CPython ships patched 3.14.x releases, or when this
+image moves to Python 3.15.
+
+The base-image bump to `python:3.14.8-alpine3.24` (from `3.14.5-alpine3.22`)
+resolved CVE-2026-6100 (CRITICAL), CVE-2026-7210 (CRITICAL),
+CVE-2026-3298 (HIGH), CVE-2026-4786 (HIGH), and a further batch of HIGH
+and MEDIUM CVEs (CVE-2026-11940, CVE-2026-11972, CVE-2026-15308,
+CVE-2026-19445, CVE-2026-19553, CVE-2026-17084, CVE-2026-7774,
+CVE-2026-9669, CVE-2026-15806, CVE-2026-3276, CVE-2026-19672,
+CVE-2026-8328, CVE-2026-4360, CVE-2026-15310, CVE-2026-6879,
+CVE-2026-12003, CVE-2026-0864, CVE-2026-18503) that were previously
+flagged by Grype.  Their `.grype.yaml` ignore entries have been removed
+accordingly.
 
 ---
 
-### Alpine OS packages — 2 CVEs (no fix available)
+### Alpine OS packages — 1 CVE (no fix available)
+
+The Alpine minor bump to 3.24 (alongside the Python base-image bump above)
+resolved CVE-2025-70873 (`sqlite-libs`, HIGH) and two newly surfaced HIGH
+`sqlite-libs` CVEs (CVE-2026-11822, CVE-2026-11824) caught in this scan
+cycle; their `.grype.yaml` ignore entry has been removed.
 
 | CVE | Package | Version | Severity | Fixed in |
 | --- | --- | --- | --- | --- |
-| CVE-2025-70873 | `sqlite-libs` | 3.49.2-r1 | HIGH | No fix in Alpine 3.22 |
-| CVE-2025-60876 | `busybox` / `busybox-binsh` / `ssl_client` | 1.37.0-r20 | MEDIUM | No fix in Alpine 3.22 |
+| CVE-2025-60876 | `busybox` / `busybox-binsh` / `ssl_client` | 1.37.0-r31 | MEDIUM | No fix in Alpine 3.24 |
 
-Both are suppressed in `.grype.yaml`.  `apk upgrade --no-cache` runs at
-every build; the entries can be removed when Alpine ships patched packages.
+Suppressed in `.grype.yaml`.  `apk upgrade --no-cache` runs at every
+build; the entry can be removed when Alpine ships a patched package.
+Docker Scout also flags `musl` 1.2.6-r3 (fixed in 1.2.6-r6, UNSPECIFIED
+severity, no CVSS score assigned) for the same reason — no patched
+package is yet published to the Alpine 3.24 `main` repository.
 
 ---
 
@@ -150,7 +168,7 @@ No further action is required.
 
 | Component | Pinning strategy |
 | --- | --- |
-| Python base image | Pinned to `python:3.14.1-alpine3.22`; Dependabot opens PRs for patch bumps |
+| Python base image | Pinned to `python:3.14.8-alpine3.24`; Dependabot opens PRs for patch bumps |
 | Alpine OS packages | Upgraded to latest patch via `apk upgrade --no-cache` at every build |
 | pip | Installed via `--require-hashes` with exact version in `requirements.txt` |
 | Python dependencies | Exact version + SHA-256 hash in `requirements.txt`; `--require-hashes` enforced |

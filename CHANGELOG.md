@@ -9,6 +9,35 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- `Dockerfile`: pinned `jq=1.8.2-r0`, replacing `jq=1.8.1-r0`, which the
+  Alpine 3.22 index had already superseded (the stale pin broke
+  `apk add` with a `world[jq=1.8.1-r0]` constraint conflict).
+- `Dockerfile`: bumped base image from `python:3.14.5-alpine3.22` to
+  `python:3.14.8-alpine3.24` (both stages), resolving CVE-2026-6100
+  (Critical), CVE-2026-7210 (Critical), CVE-2026-3298 (High),
+  CVE-2026-4786 (High), CVE-2026-11940 (High), CVE-2026-11972 (High),
+  CVE-2026-15308 (High), CVE-2026-19445 (Critical), CVE-2026-19553
+  (High), CVE-2026-9669 (High), and a further batch of Medium/Low
+  Python CVEs, plus HIGH `sqlite-libs` CVE-2025-70873, CVE-2026-11822,
+  and CVE-2026-11824, and Medium `busybox` CVE-2025-60876's prior
+  Alpine 3.22 instance (a fix-less 3.24 recurrence of the same CVE ID
+  remains, still suppressed).
+- `.grype.yaml`: removed five now-stale ignore entries
+  (CVE-2026-6100, CVE-2026-7210, CVE-2026-3298, CVE-2026-4786,
+  CVE-2025-70873) resolved by the base-image bump above; added two new
+  Medium-severity entries (CVE-2025-15367, CVE-2026-12345) for Python
+  CVEs only fixed in 3.15 pre-releases.
+- `SECURITY.md`: updated vulnerability status, dependency pinning
+  table, and base-image references for the 3.14.8/Alpine 3.24 bump;
+  documented the unfixed `busybox`/`busybox-binsh`/`ssl_client`
+  (CVE-2025-60876) and Docker Scout `musl` (CVE-2026-107891,
+  unspecified severity) findings, neither of which has a patched
+  Alpine 3.24 package yet.
+- `test/05-fix-regressions.bats`: updated the base-image pin assertion
+  to `python:3.14.8-alpine3.24`.
+
 ## [1.1.6] - 2026-06-10
 
 ### Security
