@@ -9,6 +9,8 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-10-28
+
 ### Security
 
 - `Dockerfile`: pinned `jq=1.8.2-r0`, replacing `jq=1.8.1-r0`, which the
@@ -283,7 +285,8 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 - Integration test suite (`test/bin/canonicalize`, `test/bin/prettify`,
   `test/bin/image-structure`, `test/bin/env-metadata`).
 
-[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.6...HEAD
+[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.7...HEAD
+[1.1.7]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.5...v1.1.6
 [1.1.5]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.3...v1.1.4
