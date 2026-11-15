@@ -37,6 +37,14 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 - `.grype.yaml`: removed the CVE-2025-15367 and CVE-2026-12345 ignore
   entries; added CVE-2026-116566 (Medium, fixed only in Python 3.16).
 
+### Fixed
+
+- `.gitleaks.toml`: remove the `[allowlist]` block that held only a
+  fingerprint, which Gitleaks 8.30.1 rejects as an empty allowlist
+  ("Failed to load config"), and explicitly extend the default rules.
+- `.gitleaksignore`: record the historical README false positive by its
+  exact fingerprint, the supported mechanism for fingerprint exceptions.
+
 ### Changed
 
 - `CONTRIBUTING.md`: document the protected `main` branch, required
