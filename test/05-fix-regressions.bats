@@ -37,10 +37,34 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "Dockerfile pins python 3.14.8 in both stages" {
-    run grep -c '^FROM python:3\.14\.8-alpine3\.24' "${DOCKERFILE}"
+@test "Dockerfile pins python 3.15.2 in both stages" {
+    run grep -c '^FROM python:3\.15\.2-alpine3\.24' "${DOCKERFILE}"
     [ "$status" -eq 0 ]
     [ "$output" -eq 2 ]
+}
+
+@test "Dockerfile requires zlib 1.4 or later in final image" {
+    run grep -F '"zlib>=1.4-r0"' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+}
+
+@test "Dockerfile pins patched musl packages from Alpine edge" {
+    run grep -F -- '--repository=https://dl-cdn.alpinelinux.org/alpine/edge/main' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+    run grep -F '"musl=1.2.6-r6" "musl-utils=1.2.6-r6"' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+}
+
+@test "Dockerfile rebuilds python runtime deps without libsqlite3" {
+    run grep -F "grep -v '^so:libsqlite3\\.'" "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+    run grep -F 'apk del --no-cache .python-rundeps' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+}
+
+@test "Dockerfile fails the build if sqlite-libs remains installed" {
+    run grep -F '! apk info --installed sqlite-libs' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
 }
 
 @test ".dive-ci defines explicit lowestEfficiency threshold" {

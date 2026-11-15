@@ -7,7 +7,7 @@ The image is built with defence-in-depth from the ground up:
 | Control | Implementation |
 | --- | --- |
 | Non-root execution | Dedicated `canonicalize-json` user, UID 10001, shell `/sbin/nologin` |
-| Minimal base image | `python:3.14.x-alpine3.24` — Alpine 3.24 includes jq 1.8.x which resolves all previously open jq CVEs |
+| Minimal base image | `python:3.15.x-alpine3.24` — Alpine 3.24 includes jq 1.8.x which resolves all previously open jq CVEs; unused `sqlite-libs` is removed |
 | Supply-chain pinning | `pip install --require-hashes` with explicit SHA-256 digests for every Python dependency |
 | OS patch hygiene | `apk upgrade --no-cache` runs at image-build time, pulling in all available Alpine security patches |
 | No network at runtime | Image makes no outbound connections; suitable for `--network=none` |
@@ -21,18 +21,28 @@ The image is built with defence-in-depth from the ground up:
 
 ## Current Vulnerability Status
 
-Scanned **2026-10-28** against `1121citrus/canonicalize-json:dev`.
+Scanned **2026-11-15** during the local `./build` pipeline.
 
-### Python packages — 0 CVEs
+- Trivy: no findings.
+- Grype: one unignored LOW finding, CVE-2026-103995 in Python 3.15.2.
+- Docker Scout: no vulnerable packages.
+- No unignored CRITICAL or HIGH findings. Two MEDIUM findings remain
+  suppressed because no safe fix is available in the pinned stable base:
+  Python CVE-2026-116566 and BusyBox CVE-2025-60876.
+
+### Python dependencies — 0 CVEs
 
 `jcs 0.2.1` is clean per both Trivy and pip-audit.  `pip` is uninstalled
 from the final image (only needed in the `builder` stage) so it does not
 appear in Trivy's package inventory.
 
-### Alpine OS packages — 0 CVEs
+### Alpine OS packages
 
-All Alpine packages are patched via `apk upgrade --no-cache` at build time.
-See [Dockerfile](Dockerfile) and the associated changelog entry.
+`apk upgrade --no-cache` applies available Alpine patches at build time.
+The image removes unused `sqlite-libs`, requires patched `zlib`, and pins
+the fixed `musl` packages from Alpine edge. BusyBox CVE-2025-60876 remains
+suppressed because Alpine 3.24 has no fix; the edge BusyBox package adds
+three HIGH Grype findings and is not used.
 
 ### jq — 3 CVEs resolved (Alpine 3.24 / jq 1.8.2)
 
@@ -112,17 +122,25 @@ index operations; the integer boundary is never approached during indentation.
 
 ---
 
-### Python runtime — 2 CVEs (no fix available)
+### Python runtime — 1 CVE (no fix available)
 
 | CVE | Severity | Fixed in |
 | --- | --- | --- |
-| CVE-2025-15367 | MEDIUM | 3.15.0a6 (alpha only) |
-| CVE-2026-12345 | MEDIUM | 3.15.0rc3 (rc only) |
+| CVE-2026-116566 | MEDIUM | 3.16.0 |
 
-Both are present in Python 3.14.8 with no stable 3.14.x fix as of
-2026-10-28.  Both are suppressed in `.grype.yaml`.  Remove the individual
-ignore entries when CPython ships patched 3.14.x releases, or when this
-image moves to Python 3.15.
+Present in Python 3.15.2 with no stable 3.15.x fix as of 2026-11-15.
+Suppressed in `.grype.yaml`.  Remove the ignore entry when CPython ships
+a patched 3.15.x release, or when this image moves to Python 3.16.
+CVE-2026-103995 (LOW, fixed in 3.16.0) is also reported; it does not gate
+the build and is not suppressed.
+
+The base-image move to `python:3.15.2-alpine3.24` (from `3.14.8-alpine3.24`)
+resolved CVE-2026-115557 (CRITICAL), CVE-2026-119170 (HIGH), and
+CVE-2026-87910, CVE-2026-114583, CVE-2025-15367, and CVE-2026-12345 (all
+MEDIUM).  The 3.14 line had no released fix for CVE-2026-119170 (fixed in
+the unreleased 3.14.11), so the image moved to the stable 3.15 line.
+`jcs` is pure Python and its output is unchanged.  The ignore entries for
+CVE-2025-15367 and CVE-2026-12345 have been removed.
 
 The base-image bump to `python:3.14.8-alpine3.24` (from `3.14.5-alpine3.22`)
 resolved CVE-2026-6100 (CRITICAL), CVE-2026-7210 (CRITICAL),
@@ -137,22 +155,32 @@ accordingly.
 
 ---
 
-### Alpine OS packages — 1 CVE (no fix available)
+### Alpine OS package remediation
+
+`zlib` is required at `>=1.4-r0`, resolving CVE-2026-4738 (CRITICAL).
+`sqlite-libs` 3.53.4-r0 carries CVE-2026-119373, CVE-2026-119374,
+CVE-2026-119379, CVE-2026-119586 (HIGH), CVE-2026-119371,
+CVE-2026-119372, CVE-2026-119375, CVE-2026-119376, CVE-2026-119378,
+CVE-2026-119591 (MEDIUM), and CVE-2026-119377 (LOW), with no fix in
+Alpine 3.24.  Nothing in this image uses SQLite, so the final stage
+removes `sqlite-libs` and Python's `sqlite3` module instead of
+suppressing them.
+
+Alpine 3.24 has not yet published the musl CVE-2026-107891 (HIGH) fix.
+The final image pins `musl` and `musl-utils` 1.2.6-r6 from Alpine edge.
+Remove these pins after Alpine publishes the same package versions in the
+stable 3.24 repository.
+
+BusyBox CVE-2025-60876 (MEDIUM) remains in `busybox`, `busybox-binsh`, and
+`ssl_client` 1.37.0-r31. It is suppressed in `.grype.yaml` because Alpine
+3.24 has no fix. Alpine edge's BusyBox 1.38.0-r8 introduces three High
+Grype findings, so the image retains the stable BusyBox packages until a
+safe patched release is available.
 
 The Alpine minor bump to 3.24 (alongside the Python base-image bump above)
 resolved CVE-2025-70873 (`sqlite-libs`, HIGH) and two newly surfaced HIGH
 `sqlite-libs` CVEs (CVE-2026-11822, CVE-2026-11824) caught in this scan
 cycle; their `.grype.yaml` ignore entry has been removed.
-
-| CVE | Package | Version | Severity | Fixed in |
-| --- | --- | --- | --- | --- |
-| CVE-2025-60876 | `busybox` / `busybox-binsh` / `ssl_client` | 1.37.0-r31 | MEDIUM | No fix in Alpine 3.24 |
-
-Suppressed in `.grype.yaml`.  `apk upgrade --no-cache` runs at every
-build; the entry can be removed when Alpine ships a patched package.
-Docker Scout also flags `musl` 1.2.6-r3 (fixed in 1.2.6-r6, UNSPECIFIED
-severity, no CVSS score assigned) for the same reason — no patched
-package is yet published to the Alpine 3.24 `main` repository.
 
 ---
 
@@ -168,7 +196,7 @@ No further action is required.
 
 | Component | Pinning strategy |
 | --- | --- |
-| Python base image | Pinned to `python:3.14.8-alpine3.24`; Dependabot opens PRs for patch bumps |
+| Python base image | Pinned to `python:3.15.2-alpine3.24`; Dependabot opens PRs for patch bumps |
 | Alpine OS packages | Upgraded to latest patch via `apk upgrade --no-cache` at every build |
 | pip | Installed via `--require-hashes` with exact version in `requirements.txt` |
 | Python dependencies | Exact version + SHA-256 hash in `requirements.txt`; `--require-hashes` enforced |

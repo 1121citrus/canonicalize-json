@@ -15,10 +15,12 @@
 
 # Pin the version so Dependabot can track base-image updates and bumps are
 # explicit, reviewable PRs rather than silent upgrades.
-# CVE-2025-15367 and CVE-2026-12345 (both Medium; no stable 3.14.x fix,
-# only fixed in 3.15 pre-releases) are present.  Suppressed in .grype.yaml
-# pending an upstream fix.
-FROM python:3.14.8-alpine3.24 AS builder
+# Python 3.15.2 fixes CVE-2026-115557 (Critical), CVE-2026-119170 (High),
+# CVE-2026-87910, CVE-2026-114583, CVE-2025-15367, and CVE-2026-12345 (all
+# Medium).  The 3.14 line has no released fix for CVE-2026-119170.
+# CVE-2026-116566 (Medium) is fixed only in 3.16 and is suppressed in
+# .grype.yaml.
+FROM python:3.15.2-alpine3.24 AS builder
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -44,7 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --require-hashes --no-cache-dir --prefix="/install" \
         -r requirements.txt
 
-FROM python:3.14.8-alpine3.24
+FROM python:3.15.2-alpine3.24
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -67,12 +69,39 @@ ENV INDENT=2
 # it is only needed in the builder stage; removing it here eliminates its CVE
 # surface in the final image.
 #
+# zlib>=1.4-r0 fixes CVE-2026-4738 (Critical).  The explicit lower bound
+# makes the build fail rather than silently ship the vulnerable base-image
+# zlib when a cached `apk upgrade` layer predates the fix.
+#
+# Alpine 3.24 has not yet published its musl CVE-2026-107891 fix.
+# Pin the patched 1.2.6-r6 packages from edge; remove this exception once
+# the same versions are available in the stable 3.24 repository.
+#
+# sqlite-libs is removed because nothing in this image uses SQLite, and
+# Alpine 3.24 has no fix for its open High/Medium CVEs.  The base image
+# installs it only as a dependency of the `.python-rundeps` virtual package,
+# so that package is rebuilt without libsqlite3, which lets apk remove
+# sqlite-libs while keeping the package database consistent.  Python's
+# sqlite3 module is deleted with it so `import sqlite3` fails cleanly.
+#
 # DL3018: version pinning is handled by pinning the Alpine base image minor
 # version; pinning individual package versions inside apk add is redundant.
 # hadolint ignore=DL3018,DL3017
 ARG UID=10001
+SHELL ["/bin/ash", "-o", "errexit", "-o", "pipefail", "-c"]
 RUN apk upgrade --no-cache \
-    && apk add --no-cache "jq=1.8.2-r0" \
+    && apk add --no-cache "jq=1.8.2-r0" "zlib>=1.4-r0" \
+    && apk add --no-cache \
+        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
+        "musl=1.2.6-r6" "musl-utils=1.2.6-r6" \
+    && apk info --depends .python-rundeps \
+        | grep '^so:' \
+        | grep -v '^so:libsqlite3\.' \
+        | xargs apk add --no-cache --virtual .python-rundeps-nosqlite \
+    && apk del --no-cache .python-rundeps \
+    && ! apk info --installed sqlite-libs \
+    && rm -rf /usr/local/lib/python3.*/sqlite3 \
+        /usr/local/lib/python3.*/lib-dynload/_sqlite3.*.so \
     && python -m pip uninstall -y pip \
     && adduser \
         --disabled-password --gecos "" --shell "/sbin/nologin" \

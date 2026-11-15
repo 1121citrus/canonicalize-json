@@ -9,6 +9,39 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-11-15
+
+### Security
+
+- `gitleaks-ci.yml`: check out full history and scan every commit in the
+  pushed or pull-request range, instead of only the tip of a shallow
+  clone. A secret added and then removed within one push is now
+  detected. Upgrades `actions/checkout` to v7.0.1 and gitleaks to
+  v8.30.1, and adds a 15-minute job timeout.
+- `Dockerfile`: moved the base image from `python:3.14.8-alpine3.24` to
+  `python:3.15.2-alpine3.24` (both stages), resolving CVE-2026-115557
+  (Critical), CVE-2026-119170 (High), and CVE-2026-87910,
+  CVE-2026-114583, CVE-2025-15367, and CVE-2026-12345 (Medium). No
+  released 3.14.x fixes CVE-2026-119170.
+- `Dockerfile`: require `zlib>=1.4-r0`, resolving CVE-2026-4738
+  (Critical). The lower bound fails the build instead of shipping the
+  vulnerable base-image `zlib` from a stale `apk upgrade` cache layer.
+- `Dockerfile`: install patched `musl` and `musl-utils` 1.2.6-r6 from
+  Alpine edge, resolving Docker Scout's CVE-2026-107891 (High) finding.
+  Remove the edge pin after Alpine publishes these packages for 3.24.
+- `Dockerfile`: remove the unused `sqlite-libs` package and Python
+  `sqlite3` module from the final image, eliminating four High, six
+  Medium, and one Low `sqlite-libs` CVE (CVE-2026-119371 through
+  CVE-2026-119379, CVE-2026-119586, CVE-2026-119591) that have no fix
+  in Alpine 3.24.
+- `.grype.yaml`: removed the CVE-2025-15367 and CVE-2026-12345 ignore
+  entries; added CVE-2026-116566 (Medium, fixed only in Python 3.16).
+
+### Changed
+
+- `CONTRIBUTING.md`: document the protected `main` branch, required
+  checks, and owner-only `v*` tag policy.
+
 ## [1.1.7] - 2026-10-28
 
 ### Security
@@ -285,7 +318,8 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 - Integration test suite (`test/bin/canonicalize`, `test/bin/prettify`,
   `test/bin/image-structure`, `test/bin/env-metadata`).
 
-[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.7...HEAD
+[Unreleased]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.7...v1.1.8
 [1.1.7]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.5...v1.1.6
 [1.1.5]: https://github.com/1121citrus/canonicalize-json/compare/v1.1.4...v1.1.5
