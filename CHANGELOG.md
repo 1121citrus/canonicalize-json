@@ -44,6 +44,9 @@ This project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
   ("Failed to load config"), and explicitly extend the default rules.
 - `.gitleaksignore`: record the historical README false positive by its
   exact fingerprint, the supported mechanism for fingerprint exceptions.
+- `Dockerfile`: retry the Alpine edge `musl` install up to three times,
+  15 seconds apart, and verify `musl-1.2.6-r6` is installed. A single
+  transient TLS failure fetching the edge index failed the `main` build.
 
 ### Changed
 

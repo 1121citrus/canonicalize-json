@@ -55,6 +55,16 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
+@test "Dockerfile retries the edge musl install a bounded number of times" {
+    run grep -F 'for attempt in 1 2 3; do' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+    run grep -F '[ "${attempt}" -lt 3 ] || exit 1' "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+    run grep -F "apk info -v --installed musl | grep -qxF 'musl-1.2.6-r6'" \
+        "${DOCKERFILE}"
+    [ "$status" -eq 0 ]
+}
+
 @test "Dockerfile rebuilds python runtime deps without libsqlite3" {
     run grep -F "grep -v '^so:libsqlite3\\.'" "${DOCKERFILE}"
     [ "$status" -eq 0 ]

@@ -76,6 +76,9 @@ ENV INDENT=2
 # Alpine 3.24 has not yet published its musl CVE-2026-107891 fix.
 # Pin the patched 1.2.6-r6 packages from edge; remove this exception once
 # the same versions are available in the stable 3.24 repository.
+# The edge index fetch is retried (3 attempts, 15 s apart) because a single
+# transient CDN/TLS failure otherwise fails the whole image build; the
+# build still fails if every attempt fails or the wrong musl is installed.
 #
 # sqlite-libs is removed because nothing in this image uses SQLite, and
 # Alpine 3.24 has no fix for its open High/Medium CVEs.  The base image
@@ -91,9 +94,16 @@ ARG UID=10001
 SHELL ["/bin/ash", "-o", "errexit", "-o", "pipefail", "-c"]
 RUN apk upgrade --no-cache \
     && apk add --no-cache "jq=1.8.2-r0" "zlib>=1.4-r0" \
-    && apk add --no-cache \
-        --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
-        "musl=1.2.6-r6" "musl-utils=1.2.6-r6" \
+    && for attempt in 1 2 3; do \
+           apk add --no-cache \
+               --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
+               "musl=1.2.6-r6" "musl-utils=1.2.6-r6" \
+           && break; \
+           [ "${attempt}" -lt 3 ] || exit 1; \
+           echo "edge musl install failed (attempt ${attempt}/3)" >&2; \
+           sleep 15; \
+       done \
+    && apk info -v --installed musl | grep -qxF 'musl-1.2.6-r6' \
     && apk info --depends .python-rundeps \
         | grep '^so:' \
         | grep -v '^so:libsqlite3\.' \
